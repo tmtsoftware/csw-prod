@@ -15,11 +15,11 @@ import csw.framework.internal.wiring.{FrameworkWiring, Standalone}
 import csw.location.api.models.Connection.AkkaConnection
 import csw.location.api.models.{ComponentId, ComponentType}
 import csw.location.helpers.{LSNodeSpec, OneMemberAndSeed}
-import csw.location.http.HTTPLocationService
 import csw.params.commands.CommandResponse._
 import csw.params.commands.Setup
 import csw.params.core.generics.KeyType
 import csw.params.core.models.ObsId
+import csw.location.server.http.HTTPLocationService
 import io.lettuce.core.RedisClient
 import org.scalatest.mockito.MockitoSugar
 

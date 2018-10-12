@@ -4,7 +4,7 @@ import csw.integtration.common.TestFutureExtension.RichFuture
 import csw.location.api.models.Connection.HttpConnection
 import csw.location.api.models.{ComponentId, ComponentType, HttpRegistration, RegistrationResult}
 import csw.location.client.scaladsl.HttpLocationServiceFactory
-import csw.location.internal.AdminWiring
+import csw.location.server.internal.AdminWiring
 import csw.logging.scaladsl.LoggingSystemFactory
 
 object TestService {

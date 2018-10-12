@@ -46,11 +46,10 @@ pipeline {
         // These tests cover the scenario of multiple components in multiple containers on same machine.
         stage('Multi-Jvm Test') {
             steps {
-                sh "sbt csw-location/multi-jvm:test"
+                sh "sbt csw-location-server/multi-jvm:test"
                 sh "sbt csw-config-client/multi-jvm:test"
                 sh "sbt csw-config-cli/multi-jvm:test"
                 sh "sbt csw-framework/multi-jvm:test"
-                sh "sbt csw-location/multi-jvm:test"
             }
         }
 

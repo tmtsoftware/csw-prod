@@ -6,7 +6,7 @@ private[csw] object Constants {
   val RegistryKey = "location-service-registry"
 
   // `ClusterName` is used in `ClusterSettings`. It is the name of the cluster to start the akka cluster on.
-  val ClusterName = "csw-cluster"
+  val ClusterName = "csw-location-server"
 
   // `RemoteActorSystemName` is used in `ActorSystemFactory` to create remote ActorSystem with this name
   val RemoteActorSystemName = "csw-remote-actor-system"

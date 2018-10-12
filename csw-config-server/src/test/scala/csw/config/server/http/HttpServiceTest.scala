@@ -10,7 +10,7 @@ import csw.location.api.commons.ClusterAwareSettings
 import csw.location.api.exceptions.OtherLocationIsRegistered
 import csw.location.api.models.HttpRegistration
 import csw.location.client.scaladsl.HttpLocationServiceFactory
-import csw.location.http.HTTPLocationService
+import csw.location.server.http.HTTPLocationService
 
 import scala.util.control.NonFatal
 

@@ -1,0 +1,99 @@
+pipeline {
+    agent {
+        label 'master'
+    }
+
+    options {
+        timestamps()
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git 'git@github.com:tmtsoftware/csw.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh "sbt -Dcheck.cycles=true clean compile"
+            }
+        }
+
+        stage('Multi-Node Test') { // These tests cover the scenario of multiple components in multiple containers on different machines.
+            steps {
+                sh "sbt -DenableCoverage=false csw-location-server/multiNodeTest"
+                sh "sbt -DenableCoverage=false csw-config-client/multiNodeTest"
+                sh "sbt -DenableCoverage=false csw-framework/multiNodeTest"
+            }
+        }
+
+        stage('Package') {
+            steps {
+                sh "./integration/scripts/package_integration.sh"
+            }
+        }
+
+        stage('Multi-Container Docker') {
+            steps {
+                sh "./integration/scripts/runner.sh"
+            }
+        }
+
+        stage('Multi-NICs Docker') {
+            steps {
+                sh "./integration/scripts/multiple_nic_test.sh"
+            }
+        }
+
+        stage('Publish Local') {
+            steps {
+                sh "sbt publishLocal"
+            }
+        }
+
+        stage('Remote Build Trigger - Acceptance Dev') {
+            steps {
+                withCredentials([string(credentialsId: 'TOKEN', variable: 'DEV_TOKEN')]) {
+                    sh "curl '$REMOTE_JENKINS_URL/job/acceptance-dev-nightly-build/buildWithParameters?token=$DEV_TOKEN&DEV_VERSION=0.1-SNAPSHOT&BUILD_ENV=DEV'"
+                }
+            }
+        }
+    }
+    post {
+        always {
+            script {
+                sendNotification(currentBuild.result)
+            }
+        }
+    }
+}
+
+def sendNotification(String buildStatus = 'STARTED') {
+    buildStatus = buildStatus ?: 'SUCCESSFUL'
+
+    def colorName = 'RED'
+    def colorCode = '#FF0000'
+    def subject = "${buildStatus}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'"
+    def summary = "${subject} (${env.BUILD_URL})"
+    def details = '${JELLY_SCRIPT,template="html"}'
+
+    // Override default values based on build status
+    if (buildStatus == 'STARTED') {
+        color = 'YELLOW'
+        colorCode = '#FFFF00'
+    } else if (buildStatus == 'SUCCESSFUL') {
+        color = 'GREEN'
+        colorCode = '#00FF00'
+    } else {
+        color = 'RED'
+        colorCode = '#FF0000'
+        emailext(
+                subject: subject,
+                body: details,
+                to: "tmt-csw@thoughtworks.com"
+        )
+    }
+
+    slackSend(channel: "#csw-build", color: colorCode, message: summary)
+}

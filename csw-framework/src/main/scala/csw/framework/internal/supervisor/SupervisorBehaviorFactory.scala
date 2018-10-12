@@ -4,8 +4,7 @@ import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
 import csw.command.messages.{ComponentMessage, ContainerIdleMessage, SupervisorMessage}
 import csw.framework.models.CswContext
-import csw.framework.scaladsl.ComponentBehaviorFactory
-import csw.location.scaladsl.RegistrationFactory
+import csw.framework.scaladsl.{ComponentBehaviorFactory, RegistrationFactory}
 
 /**
  * The factory for creating [[akka.actor.typed.scaladsl.MutableBehavior]] of the supervisor of a component

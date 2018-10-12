@@ -8,9 +8,9 @@ import csw.command.models.framework.{Component, ComponentInfo, SupervisorInfo}
 import csw.event.client.EventServiceFactory
 import csw.framework.internal.wiring.CswFrameworkSystem
 import csw.framework.models.CswContext
+import csw.framework.scaladsl.RegistrationFactory
 import csw.location.api.scaladsl.LocationService
 import csw.location.client.ActorSystemFactory
-import csw.location.scaladsl.RegistrationFactory
 import csw.logging.scaladsl.{Logger, LoggerFactory}
 
 import scala.async.Async._

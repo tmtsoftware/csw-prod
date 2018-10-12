@@ -16,7 +16,7 @@ import csw.framework.internal.wiring.{Container, FrameworkWiring}
 import csw.location.api.models.ComponentId
 import csw.location.api.models.ComponentType.{Assembly, HCD}
 import csw.location.api.models.Connection.AkkaConnection
-import csw.location.http.HTTPLocationService
+import csw.location.server.http.HTTPLocationService
 import csw.params.commands
 import csw.params.commands.CommandName
 import csw.params.core.states.{CurrentState, StateName}

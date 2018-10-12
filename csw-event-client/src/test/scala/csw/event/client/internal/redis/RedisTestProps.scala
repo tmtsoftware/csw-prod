@@ -15,7 +15,7 @@ import csw.event.client.internal.wiring.BaseProperties
 import csw.event.client.internal.wiring.BaseProperties.createInfra
 import csw.event.client.models.EventStores.RedisStore
 import csw.location.api.scaladsl.LocationService
-import csw.location.http.HTTPLocationServiceOnPorts
+import csw.location.server.http.HTTPLocationServiceOnPorts
 import io.lettuce.core.api.async.RedisAsyncCommands
 import io.lettuce.core.codec.StringCodec
 import io.lettuce.core.{ClientOptions, RedisClient, RedisURI}

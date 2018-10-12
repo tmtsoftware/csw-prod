@@ -4,7 +4,7 @@ import java.net.InetAddress
 
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.typed.{ActorRef, Behavior}
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorSystem, CoordinatedShutdown, Props}
 import akka.stream.scaladsl.{Keep, Sink}
 import akka.stream.{ActorMaterializer, Materializer}
 import csw.command.extensions.AkkaLocationExt.RichAkkaLocation
@@ -15,6 +15,7 @@ import csw.location.api.models.{AkkaRegistration, HttpRegistration, _}
 import csw.location.api.scaladsl.LocationService
 import csw.location.client.ActorSystemFactory
 import csw.location.client.scaladsl.HttpLocationServiceFactory
+import csw.location.server.internal.AdminWiring
 import csw.logging.internal.LoggingSystem
 import csw.logging.scaladsl._
 import csw.params.core.models.Prefix
@@ -28,6 +29,11 @@ import scala.concurrent.{Await, Future}
  * An example location service client application.
  */
 object LocationServiceExampleClientApp extends App {
+
+  // http location service client expect that location server is running on local machine
+  // here we are starting location http server so that httpLocationClient uses can be illustrated
+  private val wiring = new AdminWiring
+  Await.result(wiring.locationHttpService.start(), 5.seconds)
 
   //#create-actor-system
   implicit val actorSystem: ActorSystem = ActorSystemFactory.remote("csw-examples-locationServiceClient")
@@ -117,7 +123,9 @@ class LocationServiceExampleClient(locationService: LocationService, loggingSyst
   // ************************************************************************************************************
 
   def behavior(): Behavior[String] = Behaviors.setup { ctx =>
-    Behaviors.same
+    Behaviors.receiveMessage { msg =>
+      Behaviors.same
+    }
   }
   val typedActorRef: ActorRef[String] = context.system.spawn(behavior(), "typed-actor-ref")
 
@@ -266,10 +274,8 @@ class LocationServiceExampleClient(locationService: LocationService, loggingSyst
     Await.result(unregisterF, 5.seconds)
     //#unregister
 
-    //#shutdown
-    // Only call this once per application
-    Await.result(locationService.shutdown(ActorTerminatedReason), 20.seconds)
-    //#shutdown
+    // Gracefully shutdown actor system
+    Await.result(CoordinatedShutdown(context.system).run(ActorTerminatedReason), 20.seconds)
 
     //#stop-logging-system
     // Only call this once per application

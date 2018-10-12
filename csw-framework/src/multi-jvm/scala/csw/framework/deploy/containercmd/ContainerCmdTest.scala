@@ -27,7 +27,7 @@ import csw.config.server.{ServerWiring, Settings}
 import csw.location.api.models.Connection.AkkaConnection
 import csw.location.api.models.{ComponentId, ComponentType}
 import csw.location.helpers.{LSNodeSpec, TwoMembersAndSeed}
-import csw.location.http.HTTPLocationService
+import csw.location.server.http.HTTPLocationService
 import csw.params.commands.CommandResponse.Invalid
 import csw.params.commands.{CommandName, Setup}
 import csw.params.core.generics.{KeyType, Parameter}

@@ -9,10 +9,10 @@ import csw.config.client.scaladsl.ConfigClientFactory
 import csw.event.client.EventServiceFactory
 import csw.event.client.models.EventStores.RedisStore
 import csw.framework.deploy.ConfigUtils
+import csw.framework.scaladsl.RegistrationFactory
 import csw.location.api.scaladsl.LocationService
 import csw.location.client.ActorSystemFactory
 import csw.location.client.scaladsl.HttpLocationServiceFactory
-import csw.location.scaladsl.RegistrationFactory
 import io.lettuce.core.RedisClient
 
 import scala.concurrent.{ExecutionContext, Future}

@@ -14,7 +14,8 @@ import csw.event.client.internal.wiring.BaseProperties.createInfra
 import csw.event.client.models.EventStores.KafkaStore
 import csw.location.api.commons.ClusterAwareSettings
 import csw.location.api.scaladsl.LocationService
-import csw.location.http.HTTPLocationServiceOnPorts
+import csw.location.client.extensions.LocationServiceExt.RichLocationService
+import csw.location.server.http.HTTPLocationServiceOnPorts
 import net.manub.embeddedkafka.{EmbeddedKafka, EmbeddedKafkaConfig}
 import org.apache.kafka.clients.producer.ProducerRecord
 import org.apache.kafka.common.serialization.StringSerializer

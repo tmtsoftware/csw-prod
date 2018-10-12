@@ -7,7 +7,7 @@ import csw.command.models.framework.{ContainerLifecycleState, SupervisorLifecycl
 import csw.command.messages.ComponentCommonMessage.GetSupervisorLifecycleState
 import csw.command.messages.{ComponentMessage, ContainerMessage}
 import csw.command.messages.ContainerCommonMessage.GetContainerLifecycleState
-import csw.location.commons.BlockingUtils
+import csw.location.server.commons.BlockingUtils
 import csw.logging.internal.LoggingLevels.Level
 import org.scalatest.Matchers
 

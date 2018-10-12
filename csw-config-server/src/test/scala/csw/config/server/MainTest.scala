@@ -11,7 +11,7 @@ import csw.config.server.commons.TestFutureExtension.RichFuture
 import csw.config.server.commons.{ConfigServiceConnection, TestFileUtils}
 import csw.location.api.scaladsl.LocationService
 import csw.location.client.scaladsl.HttpLocationServiceFactory
-import csw.location.http.HTTPLocationService
+import csw.location.server.http.HTTPLocationService
 import org.tmatesoft.svn.core.SVNException
 
 import scala.concurrent.duration._

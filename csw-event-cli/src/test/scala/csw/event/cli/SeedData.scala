@@ -14,7 +14,7 @@ import csw.location.api.models.TcpRegistration
 import csw.location.api.scaladsl.LocationService
 import csw.location.client.ActorSystemFactory
 import csw.location.client.scaladsl.HttpLocationServiceFactory
-import csw.location.http.HTTPLocationService
+import csw.location.server.http.HTTPLocationService
 import csw.params.core.formats.JsonSupport
 import csw.params.events._
 import org.scalatest.{BeforeAndAfterEach, Matchers}

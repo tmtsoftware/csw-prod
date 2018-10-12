@@ -13,7 +13,7 @@ import csw.location.api.models.TcpRegistration
 import csw.location.api.scaladsl.LocationService
 import csw.location.client.ActorSystemFactory
 import csw.location.client.scaladsl.HttpLocationServiceFactory
-import csw.location.http.HTTPLocationService
+import csw.location.server.http.HTTPLocationService
 import csw.services.BuildInfo
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.SpanSugar.convertFloatToGrainOfTime

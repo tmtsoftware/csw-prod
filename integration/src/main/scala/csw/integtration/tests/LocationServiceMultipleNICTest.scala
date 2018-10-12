@@ -1,14 +1,12 @@
 package csw.integtration.tests
 
-import akka.actor.ActorSystem
 import akka.actor.CoordinatedShutdown.UnknownReason
-import akka.stream.ActorMaterializer
 import csw.integtration.common.TestFutureExtension.RichFuture
 import csw.location.api.commons.ClusterAwareSettings
 import csw.location.api.models.Connection.AkkaConnection
 import csw.location.api.models.{AkkaLocation, ComponentId, ComponentType}
 import csw.location.client.scaladsl.HttpLocationServiceFactory
-import csw.location.internal.AdminWiring
+import csw.location.server.internal.AdminWiring
 import csw.logging.scaladsl.LoggingSystemFactory
 import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.time.Span

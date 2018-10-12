@@ -14,7 +14,7 @@ import csw.config.server.ServerWiring
 import csw.config.server.commons.TestFileUtils
 import csw.location.api.scaladsl.LocationService
 import csw.location.client.scaladsl.HttpLocationServiceFactory
-import csw.location.http.HTTPLocationService
+import csw.location.server.http.HTTPLocationService
 import org.scalatest._
 
 import scala.async.Async._

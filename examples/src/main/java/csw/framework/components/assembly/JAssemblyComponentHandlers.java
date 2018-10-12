@@ -26,7 +26,7 @@ import csw.config.client.javadsl.JConfigClientFactory;
 import csw.event.api.javadsl.IEventService;
 import csw.location.api.javadsl.ILocationService;
 import csw.location.api.models.*;
-import csw.location.javadsl.JComponentType;
+import csw.location.api.javadsl.JComponentType;
 import csw.logging.javadsl.ILogger;
 import scala.concurrent.duration.FiniteDuration;
 

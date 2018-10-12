@@ -15,7 +15,7 @@ For example:
 export interfaceName=enp0s31f6
 export clusterSeeds=192.168.178.66:7777
 
-csw-location --clusterPort 7777
+csw-location-server --clusterPort 7777
 ```
 
 Replace the value for interfaceName with the network interface name you want to use 

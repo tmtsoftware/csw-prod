@@ -135,6 +135,6 @@ case class ClusterSettings(clusterName: String = Constants.ClusterName, values: 
 /**
  * `ClusterAwareSettings` represents `ClusterSettings` with default values. Other helper methods from `ClusterSettings`
  * can be used to add properties like port, seedNodes etc. `ClusterAwareSettings` is used internally in spawning many csw
- * apps like `csw-location`, `csw-config-cli`, `csw-config-server`, etc.
+ * apps like `csw-location-server`, `csw-config-cli`, `csw-config-server`, etc.
  */
 object ClusterAwareSettings extends ClusterSettings

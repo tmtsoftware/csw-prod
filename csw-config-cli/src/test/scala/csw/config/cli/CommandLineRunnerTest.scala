@@ -11,7 +11,7 @@ import csw.config.commons.TestFutureExtension.RichFuture
 import csw.config.commons.{ArgsUtil, TestFileUtils}
 import csw.config.server.ServerWiring
 import csw.location.client.scaladsl.HttpLocationServiceFactory
-import csw.location.http.HTTPLocationService
+import csw.location.server.http.HTTPLocationService
 import org.scalatest.{BeforeAndAfterEach, Matchers}
 
 // DEOPSCSW-112: Command line interface client for Configuration service

@@ -1,9 +1,6 @@
 package csw.location;
 
-import akka.actor.AbstractActor;
-import akka.actor.ActorRef;
-import akka.actor.ActorSystem;
-import akka.actor.Props;
+import akka.actor.*;
 import akka.actor.typed.Behavior;
 import akka.actor.typed.javadsl.Adapter;
 import akka.actor.typed.javadsl.Behaviors;
@@ -15,20 +12,21 @@ import akka.stream.Materializer;
 import akka.stream.javadsl.Keep;
 import akka.stream.javadsl.Sink;
 import csw.framework.commons.CoordinatedShutdownReasons;
+import csw.location.api.javadsl.JComponentType;
+import csw.location.api.javadsl.JConnectionType;
 import csw.location.api.models.*;
 import csw.location.api.javadsl.ILocationService;
 import csw.location.api.javadsl.IRegistrationResult;
 import csw.location.client.ActorSystemFactory;
 import csw.location.client.javadsl.JHttpLocationServiceFactory;
-import csw.location.internal.AdminWiring;
+import csw.location.server.internal.AdminWiring;
 import csw.params.core.models.Prefix;
 import csw.command.messages.ComponentMessage;
 import csw.command.messages.ContainerMessage;
 import csw.command.extensions.AkkaLocationExt;
-import csw.location.javadsl.*;
 import csw.location.api.models.AkkaRegistration;
 import csw.location.api.models.HttpRegistration;
-import csw.location.scaladsl.RegistrationFactory;
+import csw.location.server.scaladsl.RegistrationFactory;
 import csw.logging.internal.LoggingSystem;
 import csw.logging.javadsl.ILogger;
 import csw.logging.javadsl.JKeys;
@@ -38,7 +36,6 @@ import scala.concurrent.Await;
 import scala.concurrent.duration.FiniteDuration;
 
 import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.List;
@@ -286,9 +283,7 @@ public class JLocationServiceExampleClient extends AbstractActor {
         //#unregister
 
         try {
-            //#shutdown
-            locationService.shutdown(CoordinatedShutdownReasons.actorTerminatedReason()).get();
-            //#shutdown
+            CoordinatedShutdown.get(system).runAll(CoordinatedShutdownReasons.actorTerminatedReason()).toCompletableFuture().get();
             // #log-info-error
         } catch (InterruptedException | ExecutionException ex) {
             log.info(ex.getMessage(), ex);

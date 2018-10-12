@@ -128,11 +128,11 @@ function random_unused_port {
 }
 
 function start_seed {
-    local location_script="csw-location"
+    local location_script="csw-location-server"
 
     if [ -x "$location_script" ]; then
         echo "[LOCATION] Starting cluster seed on port: [$seed_port] ..."
-        nohup ./csw-location --clusterPort ${seed_port} -DclusterSeeds=${seeds} &> ${locationLogFile} &
+        nohup ./csw-location-server --clusterPort ${seed_port} -DclusterSeeds=${seeds} &> ${locationLogFile} &
         echo $! > ${locationPidFile}
     else
         echo "[ERROR] $location_script script does not exist, please make sure that $location_script resides in same directory as $script_name"

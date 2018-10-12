@@ -1,14 +1,12 @@
 package csw.location.api.javadsl
 
-import acyclic.skipped
 import java.time.Duration
 import java.util.Optional
 import java.util.concurrent.CompletableFuture
 import java.util.function.Consumer
-import java.{util ⇒ ju}
+import java.{util => ju}
 
 import akka.Done
-import akka.actor.CoordinatedShutdown.Reason
 import akka.stream.KillSwitch
 import akka.stream.javadsl.Source
 import csw.location.api.models._
@@ -133,16 +131,6 @@ trait ILocationService {
    * @return a killswitch which can be shutdown to unsubscribe the consumer
    */
   def subscribe(connection: Connection, consumer: Consumer[TrackingEvent]): KillSwitch
-
-  /**
-   * Shuts down the LocationService
-   *
-   * @see terminate method in CswCluster
-   * @note it is recommended not to perform any operation on LocationService after calling this method
-   * @param reason the reason explaining the shutdown
-   * @return a CompletableFuture which completes when the location service has shutdown successfully
-   */
-  def shutdown(reason: Reason): CompletableFuture[Done]
 
   /**
    * Returns the Scala API for this instance of location service

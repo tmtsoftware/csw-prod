@@ -25,7 +25,7 @@ import csw.params.core.states.{DemandState, StateName}
 import csw.command.extensions.AkkaLocationExt.RichAkkaLocation
 import csw.command.scaladsl.CommandService
 import csw.location.helpers.{LSNodeSpec, TwoMembersAndSeed}
-import csw.location.http.HTTPLocationService
+import csw.location.server.http.HTTPLocationService
 import io.lettuce.core.RedisClient
 import org.scalatest.mockito.MockitoSugar
 

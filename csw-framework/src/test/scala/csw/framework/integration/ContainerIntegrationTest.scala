@@ -23,7 +23,7 @@ import csw.framework.internal.wiring.{Container, FrameworkWiring}
 import csw.location.api.models.ComponentType.{Assembly, HCD}
 import csw.location.api.models.Connection.AkkaConnection
 import csw.location.api.models.{ComponentId, ComponentType, LocationRemoved, TrackingEvent}
-import csw.location.http.HTTPLocationService
+import csw.location.server.http.HTTPLocationService
 import csw.params.core.states.{CurrentState, StateName}
 import io.lettuce.core.RedisClient
 

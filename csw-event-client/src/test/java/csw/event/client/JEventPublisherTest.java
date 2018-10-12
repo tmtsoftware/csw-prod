@@ -5,7 +5,7 @@ import akka.actor.testkit.typed.javadsl.TestProbe;
 import akka.stream.javadsl.Keep;
 import akka.stream.javadsl.Sink;
 import akka.stream.javadsl.Source;
-import csw.location.http.JHTTPLocationService;
+import csw.location.server.http.JHTTPLocationService;
 import csw.params.events.Event;
 import csw.params.events.Event$;
 import csw.params.events.EventKey;

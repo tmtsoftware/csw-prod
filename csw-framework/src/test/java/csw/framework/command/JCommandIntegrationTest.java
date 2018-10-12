@@ -14,6 +14,7 @@ import csw.command.models.framework.LockingResponse;
 import csw.command.models.framework.LockingResponses;
 import csw.command.models.matchers.*;
 import csw.command.scaladsl.CurrentStateSubscription;
+import csw.location.server.http.JHTTPLocationService;
 import csw.common.components.framework.SampleComponentState;
 import csw.framework.internal.wiring.FrameworkWiring;
 import csw.framework.internal.wiring.Standalone;
@@ -22,7 +23,6 @@ import csw.location.api.models.AkkaLocation;
 import csw.location.api.models.ComponentId;
 import csw.location.client.ActorSystemFactory;
 import csw.location.client.javadsl.JHttpLocationServiceFactory;
-import csw.location.http.JHTTPLocationService;
 import csw.logging.javadsl.JLoggingSystemFactory;
 import csw.params.commands.CommandResponse;
 import csw.params.commands.ControlCommand;
@@ -49,8 +49,8 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static csw.common.components.command.ComponentStateForCommand.*;
+import static csw.location.api.javadsl.JComponentType.HCD;
 import static csw.location.api.models.Connection.AkkaConnection;
-import static csw.location.javadsl.JComponentType.HCD;
 
 // DEOPSCSW-217: Execute RPC like commands
 // DEOPSCSW-224: Inter component command sending

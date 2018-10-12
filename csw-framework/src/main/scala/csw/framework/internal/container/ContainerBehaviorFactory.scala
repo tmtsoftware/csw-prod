@@ -7,8 +7,8 @@ import csw.command.messages.ContainerActorMessage
 import csw.event.client.EventServiceFactory
 import csw.framework.internal.supervisor.SupervisorInfoFactory
 import csw.framework.models.ContainerInfo
+import csw.framework.scaladsl.RegistrationFactory
 import csw.location.api.scaladsl.LocationService
-import csw.location.scaladsl.RegistrationFactory
 import csw.logging.scaladsl.LoggerFactory
 
 /**

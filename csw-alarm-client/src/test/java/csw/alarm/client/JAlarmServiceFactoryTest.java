@@ -1,7 +1,6 @@
 package csw.alarm.client;
 
 import akka.actor.ActorSystem;
-import akka.actor.CoordinatedShutdown;
 import akka.stream.ActorMaterializer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -10,13 +9,11 @@ import csw.alarm.api.models.FullAlarmSeverity;
 import csw.alarm.api.scaladsl.AlarmAdminService;
 import csw.alarm.client.internal.commons.AlarmServiceConnection;
 import csw.alarm.client.internal.helpers.AlarmServiceTestSetup;
-import csw.location.api.commons.ClusterAwareSettings;
 import csw.location.api.javadsl.ILocationService;
 import csw.location.api.models.TcpRegistration;
 import csw.location.client.ActorSystemFactory;
 import csw.location.client.javadsl.JHttpLocationServiceFactory;
-import csw.location.http.JHTTPLocationService;
-import csw.location.javadsl.JLocationServiceFactory;
+import csw.location.server.http.JHTTPLocationService;
 import org.junit.*;
 import scala.concurrent.Await;
 import scala.concurrent.duration.Duration;

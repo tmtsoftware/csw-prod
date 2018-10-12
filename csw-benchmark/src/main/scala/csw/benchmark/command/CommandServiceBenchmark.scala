@@ -8,7 +8,7 @@ import akka.util
 import com.typesafe.config.ConfigFactory
 import csw.benchmark.command.BenchmarkHelpers.spawnStandaloneComponent
 import csw.command.scaladsl.CommandService
-import csw.location.internal.AdminWiring
+import csw.location.server.internal.AdminWiring
 import csw.params.commands
 import csw.params.commands.CommandName
 import csw.params.core.models.Prefix

@@ -14,7 +14,7 @@ import csw.config.server.commons.TestFileUtils
 import csw.config.server.{ServerWiring, Settings}
 import csw.location.client.scaladsl.HttpLocationServiceFactory
 import csw.location.helpers.LSNodeSpec
-import csw.location.http.HTTPLocationService
+import csw.location.server.http.HTTPLocationService
 import org.scalatest.FunSuiteLike
 
 class ConfigCliAppTestMultiJvmNode1 extends ConfigCliAppTest(0)

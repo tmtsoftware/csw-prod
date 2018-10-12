@@ -12,7 +12,7 @@ import csw.config.server.commons.TestFutureExtension.RichFuture
 import csw.config.server.files.Sha1
 import csw.config.server.{ConfigServiceTest, ServerWiring}
 import csw.location.client.scaladsl.HttpLocationServiceFactory
-import csw.location.http.HTTPLocationService
+import csw.location.server.http.HTTPLocationService
 
 // DEOPSCSW-138: Split Config API into Admin API and Client API
 // DEOPSCSW-80: HTTP based access for configuration file
@@ -42,7 +42,7 @@ class ConfigAdminApiTest extends ConfigServiceTest with HTTPLocationService {
   test("should throw exception for invalid path") {
     val filePath = Paths.get("/test/sample.$active")
 
-    a[InvalidInput] shouldBe thrownBy (
+    a[InvalidInput] shouldBe thrownBy(
       configService.create(filePath, ConfigData.fromString(configValue1), annex = false, "invalid path").await
     )
   }

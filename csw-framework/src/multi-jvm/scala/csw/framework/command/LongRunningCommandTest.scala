@@ -18,7 +18,7 @@ import csw.params.core.models.ObsId
 import csw.params.core.states.{CurrentState, StateName}
 import csw.command.scaladsl.{CommandDistributor, CommandService}
 import csw.location.helpers.{LSNodeSpec, TwoMembersAndSeed}
-import csw.location.http.HTTPLocationService
+import csw.location.server.http.HTTPLocationService
 import io.lettuce.core.RedisClient
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.mockito.MockitoSugar

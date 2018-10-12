@@ -21,10 +21,10 @@ import csw.framework.commons.CoordinatedShutdownReasons.{
 }
 import csw.framework.internal.supervisor.SupervisorInfoFactory
 import csw.framework.models._
+import csw.framework.scaladsl.RegistrationFactory
 import csw.location.api.models.Connection.AkkaConnection
 import csw.location.api.models.{AkkaRegistration, ComponentId, ComponentType}
 import csw.location.api.scaladsl.LocationService
-import csw.location.scaladsl.RegistrationFactory
 import csw.logging.scaladsl.{Logger, LoggerFactory}
 import csw.params.core.models.Prefix
 import csw.params.core.models.Subsystem.Container

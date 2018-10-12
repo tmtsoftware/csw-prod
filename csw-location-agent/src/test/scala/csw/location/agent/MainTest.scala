@@ -7,11 +7,11 @@ import akka.actor.ActorSystem
 import akka.stream.ActorMaterializer
 import com.typesafe.config.ConfigFactory
 import csw.location.agent.common.TestFutureExtension.RichFuture
-import csw.location.api.commons.{ClusterAwareSettings, ClusterSettings}
+import csw.location.api.commons.ClusterAwareSettings
 import csw.location.api.models.Connection.TcpConnection
 import csw.location.api.models.{ComponentId, ComponentType}
 import csw.location.client.scaladsl.HttpLocationServiceFactory
-import csw.location.http.HTTPLocationService
+import csw.location.server.http.HTTPLocationService
 import org.jboss.netty.logging.{InternalLoggerFactory, Slf4JLoggerFactory}
 import org.scalatest.concurrent.Eventually
 
@@ -52,7 +52,7 @@ class MainTest extends HTTPLocationService with Eventually {
   }
 
   private def testWith(args: Array[String], name: String, port: Int) = {
-    val locationAgentApp = new Main(ClusterSettings(), false)
+    val locationAgentApp = new Main(false)
     val process          = locationAgentApp.start(args).get
 
     val connection       = TcpConnection(ComponentId(name, ComponentType.Service))

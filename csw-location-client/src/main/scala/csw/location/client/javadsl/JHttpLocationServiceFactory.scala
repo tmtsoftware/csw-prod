@@ -3,6 +3,7 @@ package csw.location.client.javadsl
 import akka.actor.ActorSystem
 import akka.stream.Materializer
 import csw.location.api.javadsl.ILocationService
+import csw.location.client.extensions.LocationServiceExt.RichLocationService
 import csw.location.client.scaladsl.HttpLocationServiceFactory
 
 /**
@@ -17,7 +18,7 @@ object JHttpLocationServiceFactory {
    * so that they do not need to join and leave akka cluster.
    * */
   def makeLocalClient(actorSystem: ActorSystem, mat: Materializer): ILocationService =
-    HttpLocationServiceFactory.makeLocalClient(actorSystem, mat).asJava
+    HttpLocationServiceFactory.makeLocalClient(actorSystem, mat).asJava(actorSystem.dispatcher)
 
   /**
    * Use this factory method to create http location client when cluster seed is running remotely.
@@ -26,5 +27,5 @@ object JHttpLocationServiceFactory {
    * Hence clusterSeeds property should be set in the environment variables else [[csw.location.api.exceptions.ClusterSeedsNotFound]] exception will be thrown.
    * */
   def makeRemoteClient(actorSystem: ActorSystem, mat: Materializer): ILocationService =
-    HttpLocationServiceFactory.makeRemoteClient(actorSystem, mat).asJava
+    HttpLocationServiceFactory.makeRemoteClient(actorSystem, mat).asJava(actorSystem.dispatcher)
 }
