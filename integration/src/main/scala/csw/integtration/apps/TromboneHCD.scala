@@ -38,6 +38,6 @@ class TromboneHCD extends Actor {
   import TromboneHCD._
 
   override def receive: Receive = {
-    case Submit(Setup(_, _, CommandName("Unregister"), None, _), _) ⇒ registrationResult.unregister()
+    case Submit(Setup(_, CommandName("Unregister"), None, _), _) ⇒ registrationResult.unregister()
   }
 }

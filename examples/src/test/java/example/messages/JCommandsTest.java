@@ -301,41 +301,4 @@ public class JCommandsTest extends JUnitSuite {
         Assert.assertEquals(uniqueKeys2, Set.of(encoderKey.keyName(), filterKey.keyName()));
         Assert.assertEquals(uniqueKeys3, Set.of(encoderKey.keyName(), filterKey.keyName(), miscKey.keyName()));
     }
-
-    @Test
-    public void showCloneCommandExample() {
-        String prefix = "wfos.blue.filter";
-        Key<Integer> encoderIntKey = JKeyType.IntKey().make("encoder");
-        Parameter<Integer> encoderParam = encoderIntKey.set(22, 33);
-        CommandName commandName = new CommandName("move");
-
-        //#clone-command
-        Setup setup = new Setup(new Prefix(prefix), commandName, Optional.of(obsId)).add(encoderParam);
-        Setup setup2 = setup.cloneCommand();
-
-        Observe observe = new Observe(new Prefix(prefix), commandName, Optional.empty()).add(encoderParam);
-        Observe observe2 = observe.cloneCommand();
-
-        Wait wait = new Wait(new Prefix(prefix), commandName, Optional.of(obsId)).add(encoderParam);
-        Wait wait2 = wait.cloneCommand();
-        //#clone-command
-
-        Assert.assertNotEquals(setup.runId(), setup2.runId());
-        Assert.assertEquals(setup.commandName(), setup2.commandName());
-        Assert.assertEquals(setup.jMaybeObsId(), setup2.jMaybeObsId());
-        Assert.assertEquals(setup.jParamSet(), setup2.jParamSet());
-        Assert.assertEquals(setup.source(), setup2.source());
-
-        Assert.assertNotEquals(observe.runId(), observe2.runId());
-        Assert.assertEquals(observe.commandName(), observe2.commandName());
-        Assert.assertEquals(observe.jMaybeObsId(), observe2.jMaybeObsId());
-        Assert.assertEquals(observe.jParamSet(), observe2.jParamSet());
-        Assert.assertEquals(observe.source(), observe2.source());
-
-        Assert.assertNotEquals(wait.runId(), wait2.runId());
-        Assert.assertEquals(wait.commandName(), wait2.commandName());
-        Assert.assertEquals(wait.jMaybeObsId(), wait2.jMaybeObsId());
-        Assert.assertEquals(wait.jParamSet(), wait2.jParamSet());
-        Assert.assertEquals(wait.source(), wait2.source());
-    }
 }

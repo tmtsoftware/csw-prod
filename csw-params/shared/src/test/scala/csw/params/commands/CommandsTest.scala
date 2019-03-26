@@ -5,7 +5,6 @@ import csw.params.core.generics._
 import csw.params.core.models.Units.{degree, meter, NoUnits}
 import csw.params.core.models.{ArrayData, ObsId, Prefix}
 import org.scalatest.FunSpec
-import org.scalatest.prop.TableDrivenPropertyChecks._
 
 import scala.util.Try
 
@@ -148,12 +147,10 @@ class CommandsTest extends FunSpec {
 
       val mutatedSc2 = mutatedSc1.remove(i1)
 
-      assert(sc1.runId != mutatedSc1.runId)
       assert(sc1.source == mutatedSc1.source)
       assert(sc1.commandName == mutatedSc1.commandName)
       assert(sc1.maybeObsId == mutatedSc1.maybeObsId)
 
-      assert(mutatedSc2.runId != mutatedSc1.runId)
       assert(mutatedSc2.source == mutatedSc1.source)
       assert(mutatedSc2.commandName == mutatedSc1.commandName)
       assert(mutatedSc2.maybeObsId == mutatedSc1.maybeObsId)
@@ -231,12 +228,10 @@ class CommandsTest extends FunSpec {
 
       val mutatedOc2 = mutatedOc1.remove(i1)
 
-      assert(oc1.runId != mutatedOc1.runId)
       assert(oc1.source == mutatedOc1.source)
       assert(oc1.commandName == mutatedOc1.commandName)
       assert(oc1.maybeObsId == mutatedOc1.maybeObsId)
 
-      assert(mutatedOc2.runId != mutatedOc1.runId)
       assert(mutatedOc2.source == mutatedOc1.source)
       assert(mutatedOc2.commandName == mutatedOc1.commandName)
       assert(mutatedOc2.maybeObsId == mutatedOc1.maybeObsId)
@@ -314,12 +309,10 @@ class CommandsTest extends FunSpec {
 
       val mutatedWc2 = mutatedWc1.remove(i1)
 
-      assert(wc1.runId != mutatedWc1.runId)
       assert(wc1.source == mutatedWc1.source)
       assert(wc1.commandName == mutatedWc1.commandName)
       assert(wc1.maybeObsId == mutatedWc1.maybeObsId)
 
-      assert(mutatedWc2.runId != mutatedWc1.runId)
       assert(mutatedWc2.source == mutatedWc1.source)
       assert(mutatedWc2.commandName == mutatedWc1.commandName)
       assert(mutatedWc2.maybeObsId == mutatedWc1.maybeObsId)
@@ -585,37 +578,6 @@ class CommandsTest extends FunSpec {
       assert(sc1.get(k2).isEmpty)
       assert(sc1.get(k3).isEmpty)
       assert(sc1.get(k4).isEmpty)
-    }
-  }
-
-  describe("clone command test") {
-    val k1 = KeyType.IntKey.make("itest")
-    val k2 = KeyType.DoubleKey.make("dtest")
-    val k3 = KeyType.StringKey.make("stest")
-    val k4 = KeyType.LongArrayKey.make("lartest")
-
-    val i1      = k1.set(1, 2, 3).withUnits(degree)
-    val i2      = k2.set(1.0, 2.0, 3.0).withUnits(meter)
-    val i3      = k3.set("A", "B", "C")
-    val i4      = k4.set(ArrayData(Array.fill[Long](100)(10)), ArrayData(Array.fill[Long](100)(100)))
-    val setup   = Setup(Prefix(ck3), commandName, Some(obsId)).madd(i1, i2, i3, i4)
-    val observe = Observe(Prefix(ck3), commandName, Some(obsId)).madd(i1, i2, i3, i4)
-    val wait    = Wait(Prefix(ck3), commandName, Some(obsId)).madd(i1, i2, i3, i4)
-    val testData = Table(
-      ("controlCommand", "controlCommandClone"),
-      (setup, setup.cloneCommand),
-      (observe, observe.cloneCommand),
-      (wait, wait.cloneCommand)
-    )
-    it("clone command creates a command from existing command with a new RunId for Setup, Observe or Wait") {
-      forAll(testData) { (command, commandClone) ⇒
-        assert(command.runId != commandClone.runId)
-        assert(command.commandName == commandClone.commandName)
-        assert(command.maybeObsId == commandClone.maybeObsId)
-        assert(command.source == commandClone.source)
-        assert(command.paramSet == commandClone.paramSet)
-      }
-
     }
   }
 }

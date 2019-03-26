@@ -46,48 +46,48 @@ class McsAssemblyComponentHandlers(ctx: ActorContext[TopLevelActorMessage], cswC
 
   override def onLocationTrackingEvent(trackingEvent: TrackingEvent): Unit = Unit
 
-  override def validateCommand(controlCommand: ControlCommand): ValidateCommandResponse = {
+  override def validateCommand(runId: Id, controlCommand: ControlCommand): ValidateCommandResponse = {
     controlCommand.commandName match {
-      case `longRunning` ⇒ Accepted(controlCommand.runId)
-      case `moveCmd`     ⇒ Accepted(controlCommand.runId)
-      case `initCmd`     ⇒ Accepted(controlCommand.runId)
-      case `invalidCmd`  ⇒ Invalid(controlCommand.runId, CommandIssue.OtherIssue("Invalid"))
-      case _             ⇒ Invalid(controlCommand.runId, UnsupportedCommandIssue(controlCommand.commandName.name))
+      case `longRunning` ⇒ Accepted(runId)
+      case `moveCmd`     ⇒ Accepted(runId)
+      case `initCmd`     ⇒ Accepted(runId)
+      case `invalidCmd`  ⇒ Invalid(runId, CommandIssue.OtherIssue("Invalid"))
+      case _             ⇒ Invalid(runId, UnsupportedCommandIssue(controlCommand.commandName.name))
     }
   }
 
-  override def onSubmit(controlCommand: ControlCommand): SubmitResponse = {
+  override def onSubmit(runId: Id, controlCommand: ControlCommand): SubmitResponse = {
     controlCommand.commandName match {
       case `longRunning` ⇒
-        runId = controlCommand.runId
+        val parentId = runId
 
         // DEOPSCSW-371: Provide an API for CommandResponseManager that hides actor based interaction
         //#addSubCommand
         // When receiving the command, onSubmit adds three subCommands
         shortSetup = Setup(prefix, shortRunning, controlCommand.maybeObsId)
-        commandResponseManager.addSubCommand(runId, shortSetup.runId)
+        // commandResponseManager.addSubCommand(parentId, shortId)
 
         mediumSetup = Setup(prefix, mediumRunning, controlCommand.maybeObsId)
-        commandResponseManager.addSubCommand(runId, mediumSetup.runId)
+        //commandResponseManager.addSubCommand(parentId, mediumId)
 
         longSetup = Setup(prefix, longRunning, controlCommand.maybeObsId)
-        commandResponseManager.addSubCommand(runId, longSetup.runId)
+        //commandResponseManager.addSubCommand(parentId, longId)
         //#addSubCommand
 
         // this is to simulate that assembly is splitting command into three sub commands and forwarding same to hcd
         // longSetup takes 5 seconds to finish
         // shortSetup takes 1 second to finish
         // mediumSetup takes 3 seconds to finish
-        processCommand(longSetup)
-        processCommand(shortSetup)
-        processCommand(mediumSetup)
+        processCommand(parentId, longSetup)
+        processCommand(parentId, shortSetup)
+        processCommand(parentId, mediumSetup)
 
         // DEOPSCSW-371: Provide an API for CommandResponseManager that hides actor based interaction
         //#subscribe-to-command-response-manager
         // query the status of original command received and publish the state when its status changes to
         // Completed
         commandResponseManager
-          .queryFinal(controlCommand.runId)
+          .queryFinal(parentId)
           .foreach {
             case Completed(_) ⇒
               currentStatePublisher.publish(
@@ -100,54 +100,57 @@ class McsAssemblyComponentHandlers(ctx: ActorContext[TopLevelActorMessage], cswC
         //#query-command-response-manager
         // query CommandResponseManager to get the current status of Command, for example: Accepted/Completed/Invalid etc.
         commandResponseManager
-          .query(controlCommand.runId)
+          .query(parentId)
           .map(
             _ ⇒ () // may choose to publish current state to subscribers or do other operations
           )
         // Return response
-        Started(controlCommand.runId)
+        Started(parentId)
       //#query-command-response-manager
 
-      case `initCmd` ⇒ Completed(controlCommand.runId)
+      case `initCmd` ⇒ Completed(Id())
 
-      case `moveCmd` ⇒ Completed(controlCommand.runId)
+      case `moveCmd` ⇒ Completed(Id())
 
       case _ ⇒ //do nothing
-        Completed(controlCommand.runId)
+        Completed(Id())
 
     }
   }
 
-  private def processCommand(controlCommand: ControlCommand) = {
-    hcdComponent
-      .submit(controlCommand)
-      .map {
-        // DEOPSCSW-371: Provide an API for CommandResponseManager that hides actor based interaction
-        //#updateSubCommand
-        // An original command is split into sub-commands and sent to a component.
-        // The current state publishing is not relevant to the updateSubCommand usage.
+  private def processCommand(parentId: Id, controlCommand: ControlCommand) = {
+
+    hcdComponent.submit(controlCommand).map { cr =>
+      commandResponseManager.addSubCommand(parentId, cr.runId)
+
+      // DEOPSCSW-371: Provide an API for CommandResponseManager that hides actor based interaction
+      //#updateSubCommand
+      // An original command is split into sub-commands and sent to a component.
+      // The current state publishing is not relevant to the updateSubCommand usage.
+      cr match {
         case _: Completed ⇒
-          controlCommand.runId match {
-            case id if id == shortSetup.runId ⇒
+          controlCommand.commandName match {
+            case cn if cn == shortRunning ⇒
               currentStatePublisher
                 .publish(CurrentState(shortSetup.source, StateName("testStateName"), Set(choiceKey.set(shortCmdCompleted))))
               // As the commands get completed, the results are updated in the commandResponseManager
-              commandResponseManager.updateSubCommand(Completed(id))
-            case id if id == mediumSetup.runId ⇒
+              commandResponseManager.updateSubCommand(Completed(runId))
+            case cn if cn == mediumRunning ⇒
               currentStatePublisher
                 .publish(CurrentState(mediumSetup.source, StateName("testStateName"), Set(choiceKey.set(mediumCmdCompleted))))
-              commandResponseManager.updateSubCommand(Completed(id))
-            case id if id == longSetup.runId ⇒
+              commandResponseManager.updateSubCommand(Completed(runId))
+            case cn if cn == longRunning ⇒
               currentStatePublisher
                 .publish(CurrentState(longSetup.source, StateName("testStateName"), Set(choiceKey.set(longCmdCompleted))))
-              commandResponseManager.updateSubCommand(Completed(id))
+              commandResponseManager.updateSubCommand(Completed(runId))
           }
         //#updateSubCommand
         case _ ⇒ // Do nothing
       }
+    }
   }
 
-  override def onOneway(controlCommand: ControlCommand): Unit = ???
+  override def onOneway(runId: Id, controlCommand: ControlCommand): Unit = ???
 
   override def onShutdown(): Future[Unit] = Future.successful(Unit)
 

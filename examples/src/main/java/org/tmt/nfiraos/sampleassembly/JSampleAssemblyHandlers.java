@@ -18,6 +18,7 @@ import csw.params.commands.ControlCommand;
 import csw.params.commands.Setup;
 import csw.params.core.generics.Key;
 import csw.params.core.generics.Parameter;
+import csw.params.core.models.Id;
 import csw.params.core.models.ObsId;
 import csw.params.core.models.Prefix;
 import csw.params.events.Event;
@@ -96,7 +97,8 @@ public class JSampleAssemblyHandlers extends JComponentHandlers {
 
         // Submit command and handle response
         hcd.submit(setupCommand, commandResponseTimeout)
-                .exceptionally(ex -> new CommandResponse.Error(setupCommand.runId(), "Exception occurred when sending command: " + ex.getMessage()))
+                // FIXME -- NOT SURE HOW TO FIX THIS
+                // .exceptionally(ex -> new CommandResponse.Error(setupCommand.runId(), "Exception occurred when sending command: " + ex.getMessage()))
                 .thenAccept(commandResponse -> {
                     if (commandResponse instanceof CommandResponse.Locked) {
                         log.error("Sleed command failed: HCD is locked");
@@ -135,7 +137,7 @@ public class JSampleAssemblyHandlers extends JComponentHandlers {
                         log.error("Sleep command invalid");
                         return new CommandResponse.Error(commandResponse.runId(), "test error");
                     }
-                }).exceptionally(ex -> new CommandResponse.Error(setupCommand.runId(), ex.getMessage()))
+                })  // .exceptionally(ex -> new CommandResponse.Error(setupCommand.runId(), ex.getMessage()))
                 .toCompletableFuture();
 
 
@@ -215,17 +217,17 @@ public class JSampleAssemblyHandlers extends JComponentHandlers {
     //#subscribe
 
     @Override
-    public CommandResponse.ValidateCommandResponse validateCommand(ControlCommand controlCommand) {
+    public CommandResponse.ValidateCommandResponse validateCommand(Id runId, ControlCommand controlCommand) {
         return null;
     }
 
     @Override
-    public CommandResponse.SubmitResponse onSubmit(ControlCommand controlCommand) {
-        return new CommandResponse.Completed(controlCommand.runId());
+    public CommandResponse.SubmitResponse onSubmit(Id runId, ControlCommand controlCommand) {
+        return new CommandResponse.Completed(runId);
     }
 
     @Override
-    public void onOneway(ControlCommand controlCommand) {
+    public void onOneway(Id runId, ControlCommand controlCommand) {
     }
 
     @Override

@@ -16,6 +16,7 @@ import csw.framework.models.CswContext
 import csw.framework.scaladsl.ComponentHandlers
 import csw.logging.api.scaladsl.Logger
 import csw.params.commands.CommandResponse._
+import csw.params.core.models.Id
 
 import scala.async.Async.{async, await}
 import scala.concurrent.Await
@@ -150,35 +151,45 @@ private[framework] object ComponentBehavior {
         case Oneway(_, replyTo)   ⇒ handleOneway(commandMessage, replyTo)
         case Submit(_, replyTo)   ⇒ handleSubmit(commandMessage, replyTo)
       }
+  /**
+   * Defines action for messages which represent a [[csw.params.commands.Command]]
+   *
+   * @param commandMessage message encapsulating a [[csw.params.commands.Command]]
+   */
+  private def onRunningCompCommandMessage(commandMessage: CommandMessage): Unit = commandMessage match {
+    case Validate(_, replyTo) ⇒ handleValidate(Id(), commandMessage, replyTo)
+    case Oneway(_, replyTo)   ⇒ handleOneway(Id(), commandMessage, replyTo)
+    case Submit(_, replyTo)   ⇒ handleSubmit(Id(), commandMessage, replyTo)
+  }
 
-      def handleValidate(commandMessage: CommandMessage, replyTo: ActorRef[ValidateResponse]): Unit = {
-        log.info(s"Invoking lifecycle handler's validateCommand hook with msg :[$commandMessage]")
-        val validationResponse = lifecycleHandlers.validateCommand(commandMessage.command)
-        replyTo ! validationResponse.asInstanceOf[ValidateResponse]
-      }
+  private def handleValidate(runId: Id, commandMessage: CommandMessage, replyTo: ActorRef[ValidateResponse]): Unit = {
+    log.info(s"Invoking lifecycle handler's validateCommand hook with msg :[$commandMessage]")
+    val validationResponse = lifecycleHandlers.validateCommand(runId, commandMessage.command)
+    replyTo ! validationResponse.asInstanceOf[ValidateResponse]
+  }
 
-      def handleOneway(commandMessage: CommandMessage, replyTo: ActorRef[OnewayResponse]): Unit = {
-        log.info(s"Invoking lifecycle handler's validateCommand hook with msg :[$commandMessage]")
-        val validationResponse = lifecycleHandlers.validateCommand(commandMessage.command)
-        replyTo ! validationResponse.asInstanceOf[OnewayResponse]
+  private def handleOneway(runId: Id, commandMessage: CommandMessage, replyTo: ActorRef[OnewayResponse]): Unit = {
+    log.info(s"Invoking lifecycle handler's validateCommand hook with msg :[$commandMessage]")
+    val validationResponse = lifecycleHandlers.validateCommand(runId, commandMessage.command)
+    replyTo ! validationResponse.asInstanceOf[OnewayResponse]
 
-        validationResponse match {
-          case Accepted(_) ⇒
-            log.info(s"Invoking lifecycle handler's onOneway hook with msg :[$commandMessage]")
-            lifecycleHandlers.onOneway(commandMessage.command)
-          case invalid: Invalid ⇒
-            log.debug(s"Command not forwarded to TLA post validation. ValidationResponse was [$invalid]")
-        }
-      }
+    validationResponse match {
+      case Accepted(_) ⇒
+        log.info(s"Invoking lifecycle handler's onOneway hook with msg :[$commandMessage]")
+        lifecycleHandlers.onOneway(runId, commandMessage.command)
+      case invalid: Invalid ⇒
+        log.debug(s"Command not forwarded to TLA post validation. ValidationResponse was [$invalid]")
+    }
+  }
 
-      def handleSubmit(commandMessage: CommandMessage, replyTo: ActorRef[SubmitResponse]): Unit = {
-        log.info(s"Invoking lifecycle handler's validateCommand hook with msg :[$commandMessage]")
-        lifecycleHandlers.validateCommand(commandMessage.command) match {
-          case Accepted(runId) =>
-            commandResponseManager.commandResponseManagerActor ! AddOrUpdateCommand(Started(runId))
+  private def handleSubmit(runId: Id, commandMessage: CommandMessage, replyTo: ActorRef[SubmitResponse]): Unit = {
+    log.info(s"Invoking lifecycle handler's validateCommand hook with msg :[$commandMessage]")
+    lifecycleHandlers.validateCommand(runId, commandMessage.command) match {
+      case Accepted(_) =>
+        commandResponseManager.commandResponseManagerActor ! AddOrUpdateCommand(Started(runId))
 
-            log.info(s"Invoking lifecycle handler's onSubmit hook with msg :[$commandMessage]")
-            val submitResponse = lifecycleHandlers.onSubmit(commandMessage.command)
+        log.info(s"Invoking lifecycle handler's onSubmit hook with msg :[$commandMessage]")
+        val submitResponse = lifecycleHandlers.onSubmit(runId, commandMessage.command)
 
             // The response is used to update the CRM, it may still be `Started` if is a long running command
             commandResponseManager.commandResponseManagerActor ! AddOrUpdateCommand(submitResponse)

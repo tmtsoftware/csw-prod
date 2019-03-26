@@ -85,7 +85,6 @@ public class JCommandsTest extends JUnitSuite {
         Setup setup = new Setup(new Prefix(prefix), commandName, Optional.of(obsId)).add(encoderParam).add(epochStringParam);
 
         // runId, obsId, prefix, subsystem
-        Assert.assertNotNull(setup.runId());
         Assert.assertEquals(Optional.of(obsId), setup.jMaybeObsId());
         Assert.assertEquals(prefix, setup.source().prefix());
         Assert.assertEquals(WFOS, setup.source().subsystem());
@@ -95,17 +94,14 @@ public class JCommandsTest extends JUnitSuite {
         assertOnCommandAPI(setup);
 
         Setup mutatedSetup1 = setup.add(epochIntParam);
-        Assert.assertNotEquals(setup.runId(), mutatedSetup1.runId());
         Assert.assertEquals(setup.source(), mutatedSetup1.source());
         Assert.assertEquals(setup.commandName(), mutatedSetup1.commandName());
         Assert.assertEquals(setup.jMaybeObsId(), mutatedSetup1.jMaybeObsId());
 
         Setup mutatedSetup2 = mutatedSetup1.remove(epochIntParam);
-        Assert.assertNotEquals(mutatedSetup2.runId(), mutatedSetup1.runId());
         Assert.assertEquals(mutatedSetup2.source(), mutatedSetup1.source());
         Assert.assertEquals(mutatedSetup2.commandName(), mutatedSetup1.commandName());
         Assert.assertEquals(mutatedSetup2.jMaybeObsId(), mutatedSetup1.jMaybeObsId());
-
     }
 
     // DEOPSCSW-315: Make ObsID optional in commands
@@ -115,7 +111,6 @@ public class JCommandsTest extends JUnitSuite {
         Observe observe = new Observe(new Prefix(prefix), commandName, Optional.empty()).add(encoderParam).add(epochStringParam);
 
         // runId, prefix, obsId, subsystem
-        Assert.assertNotNull(observe.runId());
         Assert.assertEquals(Optional.empty(), observe.jMaybeObsId());
         Assert.assertEquals(prefix, observe.source().prefix());
         Assert.assertEquals(commandName, observe.commandName());
@@ -126,13 +121,11 @@ public class JCommandsTest extends JUnitSuite {
         assertOnCommandAPI(observe);
 
         Observe mutatedSetup1 = observe.add(epochIntParam);
-        Assert.assertNotEquals(observe.runId(), mutatedSetup1.runId());
         Assert.assertEquals(observe.source(), mutatedSetup1.source());
         Assert.assertEquals(observe.commandName(), mutatedSetup1.commandName());
         Assert.assertEquals(observe.jMaybeObsId(), mutatedSetup1.jMaybeObsId());
 
         Observe mutatedSetup2 = mutatedSetup1.remove(epochIntParam);
-        Assert.assertNotEquals(mutatedSetup2.runId(), mutatedSetup1.runId());
         Assert.assertEquals(mutatedSetup2.source(), mutatedSetup1.source());
         Assert.assertEquals(mutatedSetup2.commandName(), mutatedSetup1.commandName());
         Assert.assertEquals(mutatedSetup2.jMaybeObsId(), mutatedSetup1.jMaybeObsId());
@@ -144,7 +137,7 @@ public class JCommandsTest extends JUnitSuite {
         Wait wait = new Wait(new Prefix(prefix), commandName, Optional.of(obsId)).add(encoderParam).add(epochStringParam);
 
         // runId, obsId, prefix, subsystem
-        Assert.assertNotNull(wait.runId());
+        Assert.assertEquals(obsId, wait.jMaybeObsId().get());
         Assert.assertEquals(obsId, wait.jMaybeObsId().orElseThrow());
         Assert.assertEquals(prefix, wait.source().prefix());
         Assert.assertEquals(commandName, wait.commandName());
@@ -155,42 +148,13 @@ public class JCommandsTest extends JUnitSuite {
         assertOnCommandAPI(wait);
 
         Wait mutatedSetup1 = wait.add(epochIntParam);
-        Assert.assertNotEquals(wait.runId(), mutatedSetup1.runId());
         Assert.assertEquals(wait.source(), mutatedSetup1.source());
         Assert.assertEquals(wait.commandName(), mutatedSetup1.commandName());
         Assert.assertEquals(wait.jMaybeObsId(), mutatedSetup1.jMaybeObsId());
 
         Wait mutatedSetup2 = mutatedSetup1.remove(epochIntParam);
-        Assert.assertNotEquals(mutatedSetup2.runId(), mutatedSetup1.runId());
         Assert.assertEquals(mutatedSetup2.source(), mutatedSetup1.source());
         Assert.assertEquals(mutatedSetup2.commandName(), mutatedSetup1.commandName());
         Assert.assertEquals(mutatedSetup2.jMaybeObsId(), mutatedSetup1.jMaybeObsId());
-    }
-
-    @Test
-    public void shoulRdAbleToCloneAnExistingCommand() {
-        Setup setup = new Setup(new Prefix(prefix), commandName, Optional.of(obsId)).add(encoderParam).add(epochStringParam);
-        Setup setup2 = setup.cloneCommand();
-        Assert.assertNotEquals(setup.runId(), setup2.runId());
-        Assert.assertEquals(setup.commandName(), setup2.commandName());
-        Assert.assertEquals(setup.jMaybeObsId(), setup2.jMaybeObsId());
-        Assert.assertEquals(setup.jParamSet(), setup2.jParamSet());
-        Assert.assertEquals(setup.source(), setup2.source());
-
-        Observe observe = new Observe(new Prefix(prefix), commandName, Optional.empty()).add(encoderParam).add(epochStringParam);
-        Observe observe2 = observe.cloneCommand();
-        Assert.assertNotEquals(observe.runId(), observe2.runId());
-        Assert.assertEquals(observe.commandName(), observe2.commandName());
-        Assert.assertEquals(observe.jMaybeObsId(), observe2.jMaybeObsId());
-        Assert.assertEquals(observe.jParamSet(), observe2.jParamSet());
-        Assert.assertEquals(observe.source(), observe2.source());
-
-        Wait wait = new Wait(new Prefix(prefix), commandName, Optional.of(obsId)).add(encoderParam).add(epochStringParam);
-        Wait wait2 = wait.cloneCommand();
-        Assert.assertNotEquals(wait.runId(), wait2.runId());
-        Assert.assertEquals(wait.commandName(), wait2.commandName());
-        Assert.assertEquals(wait.jMaybeObsId(), wait2.jMaybeObsId());
-        Assert.assertEquals(wait.jParamSet(), wait2.jParamSet());
-        Assert.assertEquals(wait.source(), wait2.source());
     }
 }

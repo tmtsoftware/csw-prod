@@ -46,7 +46,7 @@ class JsonContractTest extends FunSpec with Matchers {
           Source
             .fromResource("json/setup_command.json")
             .mkString
-            .replace("test-runId", setup.runId.id)
+            //.replace("test-runId", setup.runId.id)
         )
 
       setupToJson shouldEqual expectedSetupJson
@@ -62,7 +62,7 @@ class JsonContractTest extends FunSpec with Matchers {
       val observeToJson = JsonSupport.writeSequenceCommand(observe)
 
       val expectedObserveJson =
-        Json.parse(Source.fromResource("json/observe_command.json").mkString.replace("test-runId", observe.runId.id))
+        Json.parse(Source.fromResource("json/observe_command.json").mkString) //replace("test-runId", observe.runId.id))
 
       observeToJson shouldEqual expectedObserveJson
     }
@@ -77,7 +77,7 @@ class JsonContractTest extends FunSpec with Matchers {
       val waitToJson = JsonSupport.writeSequenceCommand(wait)
 
       val expectedWaitJson =
-        Json.parse(Source.fromResource("json/wait_command.json").mkString.replace("test-runId", wait.runId.id))
+        Json.parse(Source.fromResource("json/wait_command.json").mkString) //.replace("test-runId", wait.runId.id))
 
       waitToJson shouldEqual expectedWaitJson
     }
@@ -250,7 +250,7 @@ class JsonContractTest extends FunSpec with Matchers {
       val expectedSetupJson = Source
         .fromResource("json/setup_with_all_keys.json")
         .mkString
-        .replace("test-runId", setup.runId.id)
+        //.replace("test-runId", setup.runId.id)
       setupToJson shouldBe Json.parse(expectedSetupJson)
     }
   }

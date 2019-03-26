@@ -9,6 +9,7 @@ import csw.framework.models.JCswContext;
 import csw.location.api.models.TrackingEvent;
 import csw.params.commands.CommandResponse;
 import csw.params.commands.ControlCommand;
+import csw.params.core.models.Id;
 import org.jooq.*;
 
 import java.util.Arrays;
@@ -66,12 +67,12 @@ public class JAssemblyComponentHandlers extends JComponentHandlers {
     }
 
     @Override
-    public CommandResponse.ValidateCommandResponse validateCommand(ControlCommand controlCommand) {
+    public CommandResponse.ValidateCommandResponse validateCommand(Id runId, ControlCommand controlCommand) {
         return null;
     }
 
     @Override
-    public CommandResponse.SubmitResponse onSubmit(ControlCommand controlCommand) {
+    public CommandResponse.SubmitResponse onSubmit(Id runId, ControlCommand controlCommand) {
 
         //#dsl-create
         Query createQuery = dsl.query("CREATE TABLE films (id SERIAL PRIMARY KEY, Name VARCHAR (10) NOT NULL)");
@@ -115,11 +116,11 @@ public class JAssemblyComponentHandlers extends JComponentHandlers {
         CompletionStage<Integer> functionResultF = functionQuery.executeAsync();
         functionResultF.thenAccept(result -> System.out.println("Function inc created with  " + result));
         //#dsl-function
-        return new CommandResponse.Completed(controlCommand.runId());
+        return new CommandResponse.Completed(runId);
     }
 
     @Override
-    public void onOneway(ControlCommand controlCommand) {
+    public void onOneway(Id runId, ControlCommand controlCommand) {
 
     }
 

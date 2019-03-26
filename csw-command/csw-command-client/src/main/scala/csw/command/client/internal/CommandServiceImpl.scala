@@ -43,7 +43,7 @@ private[command] class CommandServiceImpl(componentLocation: AkkaLocation)(impli
   override def submit(controlCommand: ControlCommand)(implicit timeout: Timeout): Future[SubmitResponse] = {
     val eventualResponse: Future[SubmitResponse] = component ? (Submit(controlCommand, _))
     eventualResponse.flatMap {
-      case _: Started ⇒ component ? (CommandResponseManagerMessage.Subscribe(controlCommand.runId, _))
+      case s: Started ⇒ component ? (CommandResponseManagerMessage.Subscribe(s.runId, _))
       case x          ⇒ Future.successful(x)
     }
   }

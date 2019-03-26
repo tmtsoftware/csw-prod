@@ -20,11 +20,11 @@ class ActionLessHandlers(ctx: ActorContext[TopLevelActorMessage], cswCtx: CswCon
 
   override def onLocationTrackingEvent(trackingEvent: TrackingEvent): Unit = ???
 
-  override def validateCommand(controlCommand: ControlCommand): ValidateCommandResponse = Accepted(Id())
+  override def validateCommand(runId: Id, controlCommand: ControlCommand): ValidateCommandResponse = Accepted(Id())
 
-  override def onSubmit(controlCommand: ControlCommand): SubmitResponse = ???
+  override def onSubmit(runId: Id, controlCommand: ControlCommand): SubmitResponse = ???
 
-  override def onOneway(controlCommand: ControlCommand): Unit = ???
+  override def onOneway(runId: Id, controlCommand: ControlCommand): Unit = ???
 
   override def onShutdown(): Future[Unit] = ???
 

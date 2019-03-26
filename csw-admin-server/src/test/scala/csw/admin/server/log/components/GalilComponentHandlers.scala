@@ -8,6 +8,7 @@ import csw.location.api.models.TrackingEvent
 import csw.logging.api.scaladsl.Logger
 import csw.params.commands.CommandResponse.{Accepted, Completed, SubmitResponse, ValidateCommandResponse}
 import csw.params.commands.ControlCommand
+import csw.params.core.models.Id
 
 import scala.concurrent.Future
 
@@ -30,13 +31,13 @@ class GalilComponentHandlers(ctx: ActorContext[TopLevelActorMessage], cswCtx: Cs
     log.fatal("Level is fatal")
   }
 
-  override def validateCommand(controlCommand: ControlCommand): ValidateCommandResponse = Accepted(controlCommand.runId)
+  override def validateCommand(runId: Id, ontrolCommand: ControlCommand): ValidateCommandResponse = Accepted(runId)
 
-  override def onSubmit(controlCommand: ControlCommand): SubmitResponse = {
-    Completed(controlCommand.runId)
+  override def onSubmit(runId: Id, controlCommand: ControlCommand): SubmitResponse = {
+    Completed(runId)
   }
 
-  override def onOneway(controlCommand: ControlCommand): Unit =
+  override def onOneway(runId: Id, controlCommand: ControlCommand): Unit =
     if (controlCommand.commandName.name == "StartLogging") startLogging()
 
   override def onShutdown(): Future[Unit] = Future.successful(())

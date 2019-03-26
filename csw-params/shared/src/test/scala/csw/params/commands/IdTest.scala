@@ -1,11 +1,10 @@
 package csw.params.commands
 
-import csw.params.core.models.{Id, ObsId, Prefix}
 import org.scalatest.{FunSuite, Matchers}
 
 //DEOPSCSW-205 Return unique id on successful command verification
 class IdTest extends FunSuite with Matchers {
-
+/*
   test("should able to create setup commands having unique runId") {
 
     var runIds: Set[Id] = Set.empty
@@ -47,4 +46,5 @@ class IdTest extends FunSuite with Matchers {
 
     runIds.size shouldBe 10
   }
+  */
 }

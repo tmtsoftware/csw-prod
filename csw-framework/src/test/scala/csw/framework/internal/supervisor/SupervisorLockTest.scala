@@ -12,7 +12,7 @@ import csw.command.client.models.framework.{LifecycleStateChanged, LockingRespon
 import csw.params.core.models.{ObsId, Prefix}
 import csw.params.core.states.{CurrentState, StateName}
 import csw.command.client.messages.CommandMessage.Submit
-import csw.command.client.messages.CommandResponseManagerMessage.{AddOrUpdateCommand, Query, Unsubscribe}
+import csw.command.client.messages.CommandResponseManagerMessage.{AddOrUpdateCommand, Unsubscribe}
 import csw.command.client.messages.ComponentCommonMessage.{ComponentStateSubscription, LifecycleStateSubscription}
 import csw.command.client.messages.SupervisorLockMessage.{Lock, Unlock}
 import csw.command.client.messages.{CommandResponseManagerMessage => CRM}
@@ -157,21 +157,22 @@ class SupervisorLockTest extends FrameworkTestSuite with BeforeAndAfterEach {
     // Client 1 sends submit command with tokenId in parameter set
     val setup = Setup(sourcePrefix, commandName, Some(obsId))
     supervisorRef ! Submit(setup, queryResponseProbe.ref)
-    queryResponseProbe.expectMessageType[Completed]
+    val queryResponse = queryResponseProbe.expectMessageType[Completed]
     // Note there is a Started from ComponentBehavior as well as Completed
-    commandResponseManagerActor.expectMessage(AddOrUpdateCommand(Started(setup.runId)))
-    commandResponseManagerActor.expectMessage(AddOrUpdateCommand(Completed(setup.runId)))
+    commandResponseManagerActor.expectMessage(AddOrUpdateCommand(Started(queryResponse.runId)))
+    commandResponseManagerActor.expectMessage(AddOrUpdateCommand(Completed(queryResponse.runId)))
 
     // Ensure Query can be sent to component even in locked state
-    supervisorRef ! Query(setup.runId, queryResponseProbe.ref)
-    commandResponseManagerActor.expectMessage(Query(setup.runId, queryResponseProbe.ref))
+    // FIXME -- Is Query gone?
+    //supervisorRef ! Query(setup.runId, queryResponseProbe.ref)
+    //commandResponseManagerActor.expectMessage(Query(setup.runId, queryResponseProbe.ref))
 
     // Ensure Subscribe can be sent to component even in locked state
-    supervisorRef ! CRM.Subscribe(setup.runId, queryResponseProbe.ref)
-    commandResponseManagerActor.expectMessage(CRM.Subscribe(setup.runId, queryResponseProbe.ref))
+    supervisorRef ! CRM.Subscribe(queryResponse.runId, queryResponseProbe.ref)
+    commandResponseManagerActor.expectMessage(CRM.Subscribe(queryResponse.runId, queryResponseProbe.ref))
 
     // Ensure Unsubscribe can be sent to component even in locked state
-    supervisorRef ! Unsubscribe(setup.runId, queryResponseProbe.ref)
+    supervisorRef ! Unsubscribe(queryResponse.runId, queryResponseProbe.ref)
     // to prove un-subscribe is handled, sending a same setup command with the same runId again
     // now that we have un-subscribed, submitResponseProbe  is not expecting command completion result (validation ll be received)
     supervisorRef ! Submit(setup, queryResponseProbe.ref)
