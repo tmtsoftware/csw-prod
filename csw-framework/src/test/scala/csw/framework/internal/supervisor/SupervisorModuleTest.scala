@@ -115,7 +115,7 @@ class SupervisorModuleTest extends FrameworkTestSuite with BeforeAndAfterEach {
           DemandState(prefix, StateName("testStateName"), Set(choiceKey.set(commandValidationChoice)))
         DemandMatcher(submitSetupValidationDemandState, timeout = 5.seconds)
           .check(submitSetupValidationCurrentState) shouldBe true
-        submitResponseProbe.expectMessage(Completed(setup.runId))
+        submitResponseProbe.expectMessageType[Completed] // Completed(setup.runId)
 
         // verify that onSubmit handler is invoked
         val submitSetupCommandCurrentState = compStateProbe.expectMessageType[CurrentState]
@@ -141,7 +141,7 @@ class SupervisorModuleTest extends FrameworkTestSuite with BeforeAndAfterEach {
           DemandState(prefix, StateName("testStateName"), Set(choiceKey.set(commandValidationChoice)))
         DemandMatcher(submitValidationDemandState, timeout = 5.seconds)
           .check(submitValidationCurrentState) shouldBe true
-        submitResponseProbe.expectMessage(Completed(observe.runId))
+        submitResponseProbe.expectMessageType[Completed] //(Completed(observe.runId))
 
         // verify that onSubmit handler is invoked
         val submitCommandCurrentState = compStateProbe.expectMessageType[CurrentState]
@@ -191,7 +191,7 @@ class SupervisorModuleTest extends FrameworkTestSuite with BeforeAndAfterEach {
           DemandState(prefix, StateName("testStateName"), Set(choiceKey.set(commandValidationChoice)))
         DemandMatcher(onewaySetupValidationDemandState, timeout = 5.seconds)
           .check(onewaySetupValidationCurrentState) shouldBe true
-        onewayResposeProbe.expectMessage(Accepted(setup.runId))
+        onewayResposeProbe.expectMessageType[Accepted] // (Accepted(setup.runId))
 
         // verify that onOneway handler is invoked and that data is transferred
         val onewaySetupCommandCurrentState = compStateProbe.expectMessageType[CurrentState]
@@ -217,7 +217,7 @@ class SupervisorModuleTest extends FrameworkTestSuite with BeforeAndAfterEach {
           DemandState(prefix, StateName("testStateName"), Set(choiceKey.set(commandValidationChoice)))
         DemandMatcher(oneWayObserveValidationDemandState, timeout = 5.seconds)
           .check(oneWayObserveValidationCurrentState) shouldBe true
-        onewayResposeProbe.expectMessage(Accepted(observe.runId))
+        onewayResposeProbe.expectMessageType[Accepted] // (Accepted(observe.runId))
 
         // verify that onObserve handler is invoked and parameter is successfully transferred
         val oneWayObserveCommandCurrentState = compStateProbe.expectMessageType[CurrentState]

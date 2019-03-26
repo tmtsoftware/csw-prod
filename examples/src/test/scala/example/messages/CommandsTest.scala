@@ -315,7 +315,7 @@ class CommandsTest extends FunSpec with Matchers {
     val prefix: Prefix = Prefix("wfos.red.detector")
 
     val i1 = k1.set(1, 2, 3).withUnits(degree)
-
+/*
     it("clone command creates a command from existing command with a new RunId for Setup, Observe or Wait") {
       //#clone-command
       val setup  = Setup(prefix, commandName, Some(obsId)).madd(i1)
@@ -346,5 +346,6 @@ class CommandsTest extends FunSpec with Matchers {
       assert(wait.source == wait2.source)
       assert(wait.paramSet == wait2.paramSet)
     }
+    */
   }
 }

@@ -12,7 +12,7 @@ import csw.location.api.models.{AkkaLocation, LocationRemoved, LocationUpdated, 
 import csw.params.commands.CommandResponse._
 import csw.params.commands.{CommandName, CommandResponse, ControlCommand, Setup}
 import csw.params.core.generics.{Key, KeyType, Parameter}
-import csw.params.core.models.{ObsId, Prefix, Units}
+import csw.params.core.models.{Id, ObsId, Prefix, Units}
 import csw.params.events._
 import csw.serializable.TMTSerializable
 
@@ -110,10 +110,13 @@ class SampleAssemblyHandlers(ctx: ActorContext[TopLevelActorMessage], cswCtx: Cs
         x
       case x =>
         x
-    } recover {
-      case ex: RuntimeException => CommandResponse.Error(setupCommand.runId, ex.getMessage)
     }
 
+    /** FIXME DON"T KNOW WHAT TO DXO HERE
+    recover {
+      case ex: RuntimeException => CommandResponse.Error(, ex.getMessage)
+    }
+    **/
     // Wait for final response, and log result
     submitCommandResponseF.foreach {
       case _: CommandResponse.Completed => log.info("Command completed successfully")
@@ -178,11 +181,11 @@ class SampleAssemblyHandlers(ctx: ActorContext[TopLevelActorMessage], cswCtx: Cs
   }
   //#subscribe
 
-  override def validateCommand(controlCommand: ControlCommand): ValidateCommandResponse = Accepted(controlCommand.runId)
+  override def validateCommand(runId: Id, controlCommand: ControlCommand): ValidateCommandResponse = Accepted(runId)
 
-  override def onSubmit(controlCommand: ControlCommand): SubmitResponse = Completed(controlCommand.runId)
+  override def onSubmit(runId: Id, controlCommand: ControlCommand): SubmitResponse = Completed(runId)
 
-  override def onOneway(controlCommand: ControlCommand): Unit = {}
+  override def onOneway(runId: Id, controlCommand: ControlCommand): Unit = {}
 
   override def onGoOffline(): Unit = {}
 

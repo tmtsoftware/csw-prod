@@ -86,7 +86,7 @@ class LongRunningCommandTest(ignore: Int)
       }
       //#subscribe-for-result
 
-      Await.result(eventualCommandResponse, 20.seconds) shouldBe Completed(assemblyLongSetup.runId)
+      Await.result(eventualCommandResponse, 20.seconds) shouldBe a[Completed] //(assemblyLongSetup.runId)
 
       // verify that commands gets completed in following sequence
       // ShortSetup => MediumSetup => LongSetup
@@ -100,19 +100,20 @@ class LongRunningCommandTest(ignore: Int)
       val response          = assemblyCommandService.submit(setupForSubscribe)
       //#submit
 
-      Await.result(response, 20.seconds) shouldBe Completed(setupForSubscribe.runId)
+      Await.result(response, 20.seconds) shouldBe a[Completed] //(setupForSubscribe.runId)
 
       //#query-response
       val setupForQuery = Setup(prefix, longRunning, Some(obsId))
-      val finalResponse = assemblyCommandService.submit(setupForQuery)
+      val submitResponseF = assemblyCommandService.submit(setupForQuery)
+      val submitResponse = Await.result(submitResponseF, 5.seconds)
 
       //do some work before querying for the result of above command as needed
-      val eventualResponse: Future[QueryResponse] = assemblyCommandService.query(setupForQuery.runId)
+      val eventualResponse: Future[QueryResponse] = assemblyCommandService.query(submitResponse.runId)
       //#query-response
-      eventualResponse.map(_ shouldBe Started(setupForQuery.runId))
+      eventualResponse.map(_ shouldBe Started(submitResponse.runId))
 
       // Use the initial future to determine the when completed
-      finalResponse.map(_ shouldBe Completed(setupForQuery.runId))
+      submitResponseF.map(_ shouldBe Completed(submitResponse.runId))
 
       enterBarrier("long-commands")
 
@@ -123,39 +124,42 @@ class LongRunningCommandTest(ignore: Int)
       val assemblyInitSetup = Setup(prefix, initCmd, Some(obsId))
       val assemblyMoveSetup = Setup(prefix, moveCmd, Some(obsId))
 
+      // FIXNE FIX  Is this a problem, submitAll has no way to tie responses to Setups except order
       val multiResponse1: Future[List[SubmitResponse]] =
         assemblyCommandService.submitAll(List(assemblyInitSetup, assemblyMoveSetup))
       //#submitAll
 
       whenReady(multiResponse1, PatienceConfiguration.Timeout(5.seconds)) { result =>
         result.length shouldBe 2
-        result.head shouldBe Completed(assemblyInitSetup.runId)
-        result(1) shouldBe Completed(assemblyMoveSetup.runId)
+        result.head shouldBe a[Completed] // (assemblyInitSetup.runId)
+        result(1) shouldBe a[Completed] // (assemblyMoveSetup.runId)
       }
 
       // Second test sends three commands with last invalid
       val multiResponse2 = assemblyCommandService.submitAll(List(assemblyInitSetup, assemblyMoveSetup, assemblyInvalidSetup))
       whenReady(multiResponse2, PatienceConfiguration.Timeout(5.seconds)) { result =>
         result.length shouldBe 3
-        result(0) shouldBe Completed(assemblyInitSetup.runId)
-        result(1) shouldBe Completed(assemblyMoveSetup.runId)
-        result(2) shouldBe Invalid(assemblyInvalidSetup.runId, OtherIssue("Invalid"))
+        result(0) shouldBe a[Completed] //(assemblyInitSetup.runId)
+        result(1) shouldBe a[Completed] // (assemblyMoveSetup.runId)
+        result(2) shouldBe a[Invalid] // (assemblyInvalidSetup.runId, OtherIssue("Invalid"))
+        val inv:Invalid = result(2).asInstanceOf[Invalid]
+        inv.issue shouldBe OtherIssue("Invalid")
       }
 
       // Second test sends three commands with second invalid so last one is unexecuted
       val multiResponse3 = assemblyCommandService.submitAll(List(assemblyInitSetup, assemblyInvalidSetup, assemblyMoveSetup))
       whenReady(multiResponse3, PatienceConfiguration.Timeout(5.seconds)) { result =>
         result.length shouldBe 2
-        result(0) shouldBe Completed(assemblyInitSetup.runId)
-        result(1) shouldBe Invalid(assemblyInvalidSetup.runId, OtherIssue("Invalid"))
+        result(0) shouldBe a[Completed] // (assemblyInitSetup.runId)
+        result(1) shouldBe a[Invalid] // (assemblyInvalidSetup.runId, OtherIssue("Invalid"))
       }
 
       // Last test does an init of assembly and then sends the long command
       val multiResponse4 = assemblyCommandService.submitAll(List(assemblyInitSetup, assemblyLongSetup))
       whenReady(multiResponse4, PatienceConfiguration.Timeout(10.seconds)) { result =>
         result.length shouldBe 2
-        result(0) shouldBe Completed(assemblyInitSetup.runId)
-        result(1) shouldBe Completed(assemblyLongSetup.runId)
+        result(0) shouldBe a[Completed] // (assemblyInitSetup.runId)
+        result(1) shouldBe a[Completed] // (assemblyLongSetup.runId)
       }
 
       enterBarrier("multiple-components-submit-multiple-commands")

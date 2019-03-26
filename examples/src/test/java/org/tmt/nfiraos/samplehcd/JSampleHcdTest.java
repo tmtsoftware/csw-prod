@@ -123,8 +123,9 @@ public class JSampleHcdTest extends JUnitSuite {
         AkkaLocation location = locationService.resolve(connection, Duration.ofSeconds(10)).get().orElseThrow();
 
         ICommandService hcd = CommandServiceFactory.jMake(location, typedActorSystem);
-
-        Assert.assertEquals(hcd.submit(setupCommand, commandResponseTimeout).get(), new CommandResponse.Completed(setupCommand.runId()));
+        CommandResponse.SubmitResponse sr = hcd.submit(setupCommand, commandResponseTimeout).get();
+        // Check type
+        Assert.assertTrue(sr instanceof CommandResponse.Completed);
     }
     //#submit
 

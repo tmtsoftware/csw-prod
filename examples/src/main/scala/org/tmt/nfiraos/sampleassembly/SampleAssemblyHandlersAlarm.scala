@@ -15,7 +15,7 @@ import csw.params.commands.CommandResponse._
 import csw.params.commands.{CommandName, CommandResponse, ControlCommand, Setup}
 import csw.params.core.generics.{Key, KeyType, Parameter}
 import csw.params.core.models.Subsystem.NFIRAOS
-import csw.params.core.models.{ObsId, Prefix, Units}
+import csw.params.core.models.{Id, ObsId, Prefix, Units}
 import csw.params.events._
 
 import scala.concurrent.duration._
@@ -159,11 +159,11 @@ class SampleAssemblyHandlersAlarm(ctx: ActorContext[TopLevelActorMessage], cswCt
     maybeEventSubscription.foreach(_.unsubscribe())
   }
 
-  override def validateCommand(controlCommand: ControlCommand): ValidateCommandResponse = Accepted(controlCommand.runId)
+  override def validateCommand(runId: Id, controlCommand: ControlCommand): ValidateCommandResponse = Accepted(runId)
 
-  override def onSubmit(controlCommand: ControlCommand): SubmitResponse = Completed(controlCommand.runId)
+  override def onSubmit(runId: Id, controlCommand: ControlCommand): SubmitResponse = Completed(runId)
 
-  override def onOneway(controlCommand: ControlCommand): Unit = {}
+  override def onOneway(runId: Id, controlCommand: ControlCommand): Unit = {}
 
   override def onGoOffline(): Unit = {}
 

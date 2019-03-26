@@ -10,7 +10,7 @@ import csw.logging.api.scaladsl.Logger
 import csw.params.commands.CommandIssue.OtherIssue
 import csw.params.commands.CommandResponse._
 import csw.params.commands._
-import csw.params.core.models.Prefix
+import csw.params.core.models.{Id, Prefix}
 import csw.params.core.states.{CurrentState, StateName}
 import csw.params.events.{Event, EventName, SystemEvent}
 import csw.time.core.models.UTCTime
@@ -48,14 +48,14 @@ class SampleComponentHandlers(ctx: ActorContext[TopLevelActorMessage], cswCtx: C
   override def onGoOnline(): Unit =
     currentStatePublisher.publish(CurrentState(prefix, StateName("testStateName"), Set(choiceKey.set(onlineChoice))))
 
-  override def onSubmit(controlCommand: ControlCommand): SubmitResponse = {
+  override def onSubmit(runId: Id, controlCommand: ControlCommand): SubmitResponse = {
     // Adding passed in parameter to see if data is transferred properly
     currentStatePublisher.publish(CurrentState(prefix, StateName("testStateName"), Set(choiceKey.set(submitCommandChoice))))
     processCommand(controlCommand)
-    Completed(controlCommand.runId)
+    Completed(runId)
   }
 
-  override def onOneway(controlCommand: ControlCommand): Unit = {
+  override def onOneway(runId: Id, controlCommand: ControlCommand): Unit = {
     // Adding passed in parameter to see if data is transferred properly
     currentStatePublisher.publish(CurrentState(prefix, StateName("testStateName"), Set(choiceKey.set(oneWayCommandChoice))))
     processCommand(controlCommand)
@@ -72,24 +72,24 @@ class SampleComponentHandlers(ctx: ActorContext[TopLevelActorMessage], cswCtx: C
       )
 
     controlCommand match {
-      case Setup(_, _, `setSeverityCommand`, _, _) ⇒ alarmService.setSeverity(testAlarmKey, testSeverity)
+      case Setup(_, `setSeverityCommand`, _, _) ⇒ alarmService.setSeverity(testAlarmKey, testSeverity)
 
-      case Setup(_, _, CommandName("publish.event.success"), _, _) ⇒ eventService.defaultPublisher.publish(event)
+      case Setup(_, CommandName("publish.event.success"), _, _) ⇒ eventService.defaultPublisher.publish(event)
 
-      case Setup(_, somePrefix, CommandName("subscribe.event.success"), _, _) ⇒
+      case Setup(somePrefix, CommandName("subscribe.event.success"), _, _) ⇒
         eventService.defaultSubscriber.subscribeCallback(Set(event.eventKey), processEvent(somePrefix))
 
-      case Setup(_, _, CommandName("time.service.scheduler.success"), _, _) =>
+      case Setup(_, CommandName("time.service.scheduler.success"), _, _) =>
         timeServiceScheduler.scheduleOnce(UTCTime.now()) {
           currentStatePublisher.publish(CurrentState(prefix, timeServiceSchedulerState))
         }
 
-      case Setup(_, somePrefix, _, _, _) ⇒
+      case Setup(somePrefix, _, _, _) ⇒
         currentStatePublisher.publish(
           CurrentState(somePrefix, StateName("testStateName"), controlCommand.paramSet + choiceKey.set(setupConfigChoice))
         )
 
-      case Observe(_, somePrefix, _, _, _) ⇒
+      case Observe(somePrefix, _, _, _) ⇒
         currentStatePublisher.publish(
           CurrentState(somePrefix, StateName("testStateName"), controlCommand.paramSet + choiceKey.set(observeConfigChoice))
         )
@@ -97,10 +97,10 @@ class SampleComponentHandlers(ctx: ActorContext[TopLevelActorMessage], cswCtx: C
     }
   }
 
-  def validateCommand(command: ControlCommand): ValidateCommandResponse = {
+  override def validateCommand(runId: Id, command: ControlCommand): ValidateCommandResponse = {
     currentStatePublisher.publish(CurrentState(prefix, StateName("testStateName"), Set(choiceKey.set(commandValidationChoice))))
-    if (command.commandName.name.contains("success")) Accepted(command.runId)
-    else Invalid(command.runId, OtherIssue("Testing: Received failure, will return Invalid."))
+    if (command.commandName.name.contains("success")) Accepted(runId)
+    else Invalid(runId, OtherIssue("Testing: Received failure, will return Invalid."))
   }
 
   override def onShutdown(): Future[Unit] = Future {

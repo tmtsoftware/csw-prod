@@ -10,6 +10,7 @@ import csw.params.commands.CommandResponse._
 import csw.params.commands.ControlCommand
 import csw.location.api.models.TrackingEvent
 import csw.params.commands.CommandIssue.UnsupportedCommandIssue
+import csw.params.core.models.Id
 
 import scala.concurrent.Future
 import scala.concurrent.duration.DurationLong
@@ -22,45 +23,39 @@ class McsHcdComponentHandlers(ctx: ActorContext[TopLevelActorMessage], cswCtx: C
 
   override def onLocationTrackingEvent(trackingEvent: TrackingEvent): Unit = ???
 
-  override def validateCommand(controlCommand: ControlCommand): ValidateCommandResponse = {
+  override def validateCommand(runId: Id, controlCommand: ControlCommand): ValidateCommandResponse = {
     controlCommand.commandName match {
-      case `longRunning`               ⇒ Accepted(controlCommand.runId)
-      case `mediumRunning`             ⇒ Accepted(controlCommand.runId)
-      case `shortRunning`              ⇒ Accepted(controlCommand.runId)
-      case `failureAfterValidationCmd` ⇒ Accepted(controlCommand.runId)
+      case `longRunning`               ⇒ Accepted(runId)
+      case `mediumRunning`             ⇒ Accepted(runId)
+      case `shortRunning`              ⇒ Accepted(runId)
+      case `failureAfterValidationCmd` ⇒ Accepted(runId)
       case _ ⇒
-        Invalid(controlCommand.runId, UnsupportedCommandIssue(controlCommand.commandName.name))
+        Invalid(Id(), UnsupportedCommandIssue(controlCommand.commandName.name))
     }
   }
 
   //#addOrUpdateCommand
-  override def onSubmit(controlCommand: ControlCommand): SubmitResponse = {
+  override def onSubmit(runId: Id, controlCommand: ControlCommand): SubmitResponse = {
     controlCommand.commandName match {
       case `longRunning` ⇒
-        ctx.scheduleOnce(5.seconds,
-                         commandResponseManager.commandResponseManagerActor,
-                         AddOrUpdateCommand(Completed(controlCommand.runId)))
-        Started(controlCommand.runId)
+        ctx.scheduleOnce(5.seconds, commandResponseManager.commandResponseManagerActor, AddOrUpdateCommand(Completed(runId)))
+        Started(runId)
       //#addOrUpdateCommand
       case `mediumRunning` ⇒
-        ctx.scheduleOnce(3.seconds,
-                         commandResponseManager.commandResponseManagerActor,
-                         AddOrUpdateCommand(Completed(controlCommand.runId)))
-        Started(controlCommand.runId)
+        ctx.scheduleOnce(3.seconds, commandResponseManager.commandResponseManagerActor, AddOrUpdateCommand(Completed(runId)))
+        Started(runId)
       case `shortRunning` ⇒
-        ctx.scheduleOnce(1.seconds,
-                         commandResponseManager.commandResponseManagerActor,
-                         AddOrUpdateCommand(Completed(controlCommand.runId)))
-        Started(controlCommand.runId)
+        ctx.scheduleOnce(1.seconds, commandResponseManager.commandResponseManagerActor, AddOrUpdateCommand(Completed(runId)))
+        Started(runId)
       case `failureAfterValidationCmd` ⇒
-        commandResponseManager.addOrUpdateCommand(Error(controlCommand.runId, "Failed command"))
-        Error(controlCommand.runId, "Failed command")
+        commandResponseManager.addOrUpdateCommand(Error(runId, "Failed command"))
+        Error(runId, "Failed command")
       case _ ⇒
-        Error(controlCommand.runId, "Unknown Command")
+        Error(runId, "Unknown Command")
     }
   }
 
-  override def onOneway(controlCommand: ControlCommand): Unit = ???
+  override def onOneway(runId: Id, controlCommand: ControlCommand): Unit = ???
 
   override def onShutdown(): Future[Unit] = ???
 

@@ -40,7 +40,7 @@ import csw.location.api.models.{AkkaRegistration, ComponentId}
 import csw.logging.api.scaladsl.Logger
 import csw.logging.client.internal.LogAdminUtil
 import csw.params.commands.CommandResponse.Locked
-import csw.params.core.models.Prefix
+import csw.params.core.models.{Id, Prefix}
 
 import scala.concurrent.Future
 import scala.concurrent.duration.{DurationDouble, FiniteDuration}
@@ -205,7 +205,7 @@ private[framework] final class SupervisorBehavior(
     case Lock(source, replyTo, leaseDuration) ⇒ lockComponent(source, replyTo, leaseDuration)
     case Unlock(source, replyTo)              ⇒ unlockComponent(source, replyTo)
     case cmdMsg: CommandMessage ⇒
-      if (lockManager.allowCommand(cmdMsg)) runningComponent.get ! cmdMsg else cmdMsg.replyTo ! Locked(cmdMsg.command.runId)
+      if (lockManager.allowCommand(cmdMsg)) runningComponent.get ! cmdMsg else cmdMsg.replyTo ! Locked(Id()) // Create a new Id here
     case runningMessage: RunningMessage ⇒ handleRunningMessage(runningMessage)
     case msg @ Running(_)               ⇒ log.info(s"Ignoring [$msg] message received from TLA as Supervisor already in Running state")
   }
