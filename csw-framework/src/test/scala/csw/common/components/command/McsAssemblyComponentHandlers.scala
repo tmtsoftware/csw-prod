@@ -26,10 +26,10 @@ class McsAssemblyComponentHandlers(ctx: ActorContext[TopLevelActorMessage], cswC
   implicit val scheduler: Scheduler = ctx.system.scheduler
   implicit val ec: ExecutionContext = ctx.executionContext
   var hcdComponent: CommandService  = _
-  var runId: Id                     = _
-  var shortSetup: Setup             = _
-  var mediumSetup: Setup            = _
-  var longSetup: Setup              = _
+  //var runId: Id                     = _
+  var shortSetup: Setup  = _
+  var mediumSetup: Setup = _
+  var longSetup: Setup   = _
 
   import cswCtx._
 
@@ -119,8 +119,9 @@ class McsAssemblyComponentHandlers(ctx: ActorContext[TopLevelActorMessage], cswC
   }
 
   private def processCommand(parentId: Id, controlCommand: ControlCommand) = {
-
+    println(s"Sending: $controlCommand")
     hcdComponent.submit(controlCommand).map { cr =>
+      println(s"GOT: $cr")
       commandResponseManager.addSubCommand(parentId, cr.runId)
 
       // DEOPSCSW-371: Provide an API for CommandResponseManager that hides actor based interaction
@@ -131,18 +132,21 @@ class McsAssemblyComponentHandlers(ctx: ActorContext[TopLevelActorMessage], cswC
         case _: Completed ⇒
           controlCommand.commandName match {
             case cn if cn == shortRunning ⇒
+              println("It's short running")
               currentStatePublisher
                 .publish(CurrentState(shortSetup.source, StateName("testStateName"), Set(choiceKey.set(shortCmdCompleted))))
               // As the commands get completed, the results are updated in the commandResponseManager
-              commandResponseManager.updateSubCommand(Completed(runId))
+              commandResponseManager.updateSubCommand(Completed(cr.runId))
             case cn if cn == mediumRunning ⇒
+              println("It's medium running")
               currentStatePublisher
                 .publish(CurrentState(mediumSetup.source, StateName("testStateName"), Set(choiceKey.set(mediumCmdCompleted))))
-              commandResponseManager.updateSubCommand(Completed(runId))
+              commandResponseManager.updateSubCommand(Completed(cr.runId))
             case cn if cn == longRunning ⇒
+              println("It's long running")
               currentStatePublisher
                 .publish(CurrentState(longSetup.source, StateName("testStateName"), Set(choiceKey.set(longCmdCompleted))))
-              commandResponseManager.updateSubCommand(Completed(runId))
+              commandResponseManager.updateSubCommand(Completed(cr.runId))
           }
         //#updateSubCommand
         case _ ⇒ // Do nothing

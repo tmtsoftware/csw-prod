@@ -40,13 +40,14 @@ private[command] class CommandServiceImpl(componentLocation: AkkaLocation)(impli
     component ? (Validate(controlCommand, _))
   }
 
-  override def submit(controlCommand: ControlCommand)(implicit timeout: Timeout): Future[SubmitResponse] = {
-    val eventualResponse: Future[SubmitResponse] = component ? (Submit(controlCommand, _))
-    eventualResponse.flatMap {
+  override def submit(controlCommand: ControlCommand)(implicit timeout: Timeout): Future[SubmitResponse] =
+    submitOnly(controlCommand).flatMap {
       case s: Started ⇒ component ? (CommandResponseManagerMessage.Subscribe(s.runId, _))
       case x          ⇒ Future.successful(x)
     }
-  }
+
+  override def submitOnly(controlCommand: ControlCommand)(implicit timeout: Timeout): Future[SubmitResponse] =
+    component ? (Submit(controlCommand, _))
 
   override def submitAll(
       submitCommands: List[ControlCommand]

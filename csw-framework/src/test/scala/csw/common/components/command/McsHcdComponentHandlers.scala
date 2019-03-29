@@ -38,6 +38,7 @@ class McsHcdComponentHandlers(ctx: ActorContext[TopLevelActorMessage], cswCtx: C
   override def onSubmit(runId: Id, controlCommand: ControlCommand): SubmitResponse = {
     controlCommand.commandName match {
       case `longRunning` ⇒
+        println(s"HCD Updating: $runId with Started")
         ctx.scheduleOnce(5.seconds, commandResponseManager.commandResponseManagerActor, AddOrUpdateCommand(Completed(runId)))
         Started(runId)
       //#addOrUpdateCommand
