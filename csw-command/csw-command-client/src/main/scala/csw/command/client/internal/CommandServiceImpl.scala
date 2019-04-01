@@ -105,6 +105,13 @@ private[command] class CommandServiceImpl(componentLocation: AkkaLocation)(impli
   override def queryFinal(commandRunId: Id)(implicit timeout: Timeout): Future[SubmitResponse] =
     component ? (CommandResponseManagerMessage.Subscribe(commandRunId, _))
 
+  // components coming via this api will be removed from  subscriber's list after timeout
+  override def whenFinal(submit: Future[SubmitResponse])(implicit timeout: Timeout): Future[SubmitResponse] = {
+    submit.flatMap(x => queryFinal(x.runId))
+  }
+
+    //component ? (CommandResponseManagerMessage.Subscribe(commandRunId, _))
+
   override def subscribeCurrentState(callback: CurrentState ⇒ Unit): CurrentStateSubscription =
     new CurrentStateSubscriptionImpl(component, None, callback)
 
