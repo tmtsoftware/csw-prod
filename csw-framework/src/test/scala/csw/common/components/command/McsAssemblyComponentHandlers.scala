@@ -120,15 +120,17 @@ class McsAssemblyComponentHandlers(ctx: ActorContext[TopLevelActorMessage], cswC
 
   private def processCommand(parentId: Id, controlCommand: ControlCommand) = {
     println(s"Sending: $controlCommand")
-    hcdComponent.submit(controlCommand).map { cr =>
+    val xx = hcdComponent.submitOnly(controlCommand)
+    xx map { cr =>
       println(s"GOT: $cr")
       commandResponseManager.addSubCommand(parentId, cr.runId)
+    }
 
       // DEOPSCSW-371: Provide an API for CommandResponseManager that hides actor based interaction
       //#updateSubCommand
       // An original command is split into sub-commands and sent to a component.
       // The current state publishing is not relevant to the updateSubCommand usage.
-      cr match {
+      hcdComponent.whenFinal(xx) match {
         case _: Completed ⇒
           controlCommand.commandName match {
             case cn if cn == shortRunning ⇒
@@ -136,7 +138,7 @@ class McsAssemblyComponentHandlers(ctx: ActorContext[TopLevelActorMessage], cswC
               currentStatePublisher
                 .publish(CurrentState(shortSetup.source, StateName("testStateName"), Set(choiceKey.set(shortCmdCompleted))))
               // As the commands get completed, the results are updated in the commandResponseManager
-              commandResponseManager.updateSubCommand(Completed(cr.runId))
+              commandResponseManager.updateSubCommand(Completed(xx.runId))
             case cn if cn == mediumRunning ⇒
               println("It's medium running")
               currentStatePublisher
@@ -151,7 +153,7 @@ class McsAssemblyComponentHandlers(ctx: ActorContext[TopLevelActorMessage], cswC
         //#updateSubCommand
         case _ ⇒ // Do nothing
       }
-    }
+
   }
 
   override def onOneway(runId: Id, controlCommand: ControlCommand): Unit = ???
