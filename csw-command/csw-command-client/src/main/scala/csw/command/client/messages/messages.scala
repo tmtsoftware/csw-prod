@@ -279,12 +279,10 @@ private[csw] object FromSupervisorMessage {
 ////////////////
 
 // Parent trait for Messages which will be send to components for interacting with its logging system
-sealed trait LogControlMessages extends ComponentMessage with SequencerMsg with CommandSerializable
+sealed trait LogControlMessage extends ComponentMessage with SequencerMsg with CommandSerializable
 
 // Message to get Logging configuration metadata of the receiver
-case class GetComponentLogMetadata(componentName: String, replyTo: ActorRef[LogMetadata])
-    extends LogControlMessages
-    with RemoteMsg
+case class GetComponentLogMetadata(componentName: String, replyTo: ActorRef[LogMetadata]) extends LogControlMessage with RemoteMsg
 
 // Message to change the log level of any component
-case class SetComponentLogLevel(componentName: String, logLevel: Level) extends LogControlMessages with RemoteMsg
+case class SetComponentLogLevel(componentName: String, logLevel: Level) extends LogControlMessage with RemoteMsg

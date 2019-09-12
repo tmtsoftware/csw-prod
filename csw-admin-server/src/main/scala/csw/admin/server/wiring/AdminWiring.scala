@@ -10,7 +10,7 @@ import csw.location.client.ActorSystemFactory
 import csw.location.client.scaladsl.HttpLocationServiceFactory
 
 // $COVERAGE-OFF$
-private[admin] class AdminWiring {
+class AdminWiring {
   lazy val config: Config                                = ConfigFactory.load()
   lazy val settings                                      = new Settings(config)
   lazy val actorSystem: typed.ActorSystem[SpawnProtocol] = ActorSystemFactory.remote(SpawnProtocol.behavior, "admin-server")
@@ -23,7 +23,7 @@ private[admin] class AdminWiring {
   lazy val adminHttpService: AdminHttpService = new AdminHttpService(adminRoutes, actorRuntime, settings)
 }
 
-private[admin] object AdminWiring {
+object AdminWiring {
 
   def make(maybeAdminPort: Option[Int], locationHost: String = "localhost"): AdminWiring =
     new AdminWiring {

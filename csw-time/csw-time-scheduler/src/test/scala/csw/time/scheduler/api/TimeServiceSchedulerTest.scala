@@ -14,17 +14,17 @@ import csw.time.scheduler.TimeServiceSchedulerFactory
 import org.scalatest.FunSuiteLike
 
 import scala.collection.mutable.ArrayBuffer
-import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
+import scala.concurrent.{Await, ExecutionContext}
 
 class TimeServiceSchedulerTest extends ScalaTestWithActorTestKit(ManualTime.config) with FunSuiteLike {
 
-  private val manualTime = ManualTime()(system)
-  private val jitter     = 10
+  private val manualTime                    = ManualTime()(system)
+  private val jitter                        = 10
+  private implicit val ec: ExecutionContext = system.executionContext
 
 //  private implicit val system1: typed.ActorSystem[_] = typed.ActorSystem(Behavior.empty, "test")
-  private val timeService = TimeServiceSchedulerFactory.make()
-
+  private val timeService = new TimeServiceSchedulerFactory().make()
   // DEOPSCSW-542: Schedule a task to execute in future
   List(
     ("TAITime", () => TAITime(TAITime.now().value.plusSeconds(1))), // lazily evaluate time when tests are executed
@@ -81,9 +81,11 @@ class TimeServiceSchedulerTest extends ScalaTestWithActorTestKit(ManualTime.conf
   // DEOPSCSW-549: Time service api
   test("should schedule multiple tasks at same start time") {
     // we do not want manual config in this test to compare start time with task execution time
-    // hence separate instance of actor system is created here which does not use ManualConfig
-    val system      = typed.ActorSystem(Behavior.empty, "test1")
-    val timeService = TimeServiceSchedulerFactory.make()(system)
+    // hence separate instance of actor typedSystem is created here which does not use ManualConfig
+    val system                        = typed.ActorSystem(Behavior.empty, "test1")
+    implicit val ec: ExecutionContext = system.executionContext
+
+    val timeService = new TimeServiceSchedulerFactory()(system.scheduler).make()
     val testProbe   = scaladsl.TestProbe[UTCTime]("blah")(system)
 
     val startTime    = UTCTime(UTCTime.now().value.plusSeconds(1))
@@ -108,10 +110,13 @@ class TimeServiceSchedulerTest extends ScalaTestWithActorTestKit(ManualTime.conf
   // DEOPSCSW-549: Time service api
   test("repeating task that also saves time") {
     // we do not want manual config in this test to compare start time with task execution time
-    // hence separate instance of actor system is created here which does not use ManualConfig
-    val system      = typed.ActorSystem(Behavior.empty, "test1")
-    val timeService = TimeServiceSchedulerFactory.make()(system)
-    val testProbe   = scaladsl.TestProbe[UTCTime]()(system)
+    // hence separate instance of actor typedSystem is created here which does not use ManualConfig
+    val system                        = typed.ActorSystem(Behavior.empty, "test1")
+    implicit val ec: ExecutionContext = system.executionContext
+
+    val timeService = new TimeServiceSchedulerFactory()(system.scheduler).make()
+
+    val testProbe = scaladsl.TestProbe[UTCTime]()(system)
 
     val buffer: ArrayBuffer[Int] = ArrayBuffer.empty
 
@@ -146,10 +151,11 @@ class TimeServiceSchedulerTest extends ScalaTestWithActorTestKit(ManualTime.conf
   // DEOPSCSW-549: Time service api
   test("repeating task that also saves time but with an offset") {
     // we do not want manual config in this test to compare start time with task execution time
-    // hence separate instance of actor system is created here which does not use ManualConfig
-    val system      = typed.ActorSystem(Behavior.empty, "test1")
-    val timeService = TimeServiceSchedulerFactory.make()(system)
-    val testProbe   = scaladsl.TestProbe[UTCTime]()(system)
+    // hence separate instance of actor typedSystem is created here which does not use ManualConfig
+    val system                        = typed.ActorSystem(Behavior.empty, "test1")
+    implicit val ec: ExecutionContext = system.executionContext
+    val timeService                   = new TimeServiceSchedulerFactory()(system.scheduler).make()
+    val testProbe                     = scaladsl.TestProbe[UTCTime]()(system)
 
     val buffer: ArrayBuffer[Int] = ArrayBuffer.empty
 

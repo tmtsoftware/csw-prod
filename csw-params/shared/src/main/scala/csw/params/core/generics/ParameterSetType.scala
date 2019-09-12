@@ -57,7 +57,8 @@ abstract class ParameterSetType[T <: ParameterSetType[T]] { self: T =>
    * @return a new instance of this parameter set with the given parameter added
    */
   @varargs
-  def madd[P <: Parameter[_]](parametersToAdd: P*): T = madd(parametersToAdd.toSet)
+  def madd[P <: Parameter[_]](parametersToAdd: P*): T                = madd(parametersToAdd.toSet)
+  def jMadd[P <: Parameter[_]](parametersToAdd: java.util.Set[P]): T = madd(parametersToAdd.asScala.toSet)
 
   /**
    * Adds several parameters to the parameter set

@@ -180,10 +180,8 @@ class DatabaseServiceFactory private[database] (actorSystem: ActorSystem[_], val
 
     try {
       val hikariConfig = new HikariConfig(toProperties(finalDataSourceConfig))
-      val dialect      = cswDatabase.getString("databaseDialect")
-
       log.info(s"Connecting to database using config :[$finalDataSourceConfig]")
-      DSL.using(new HikariDataSource(hikariConfig), SQLDialect.valueOf(dialect))
+      DSL.using(new HikariDataSource(hikariConfig), SQLDialect.POSTGRES)
     } catch {
       case NonFatal(ex) =>
         val exception = DatabaseException(ex.getMessage, ex.getCause)

@@ -40,25 +40,30 @@ private[logging] object LogActor {
       var appenders: Seq[LogAppender] = appends
 
       // Send JSON log object for each appender configured for the logging system
-      def append(baseMsg: JsObject, category: String, level: Level): Unit =
+      def append(baseMsg: JsObject, category: String): Unit =
         for (appender <- appenders) appender.append(baseMsg, category)
 
       def receiveAltMessage(logAltMessage: LogAltMessage): Unit = {
         val jsonObject = generateAltMessageJson(logAltMessage)
-        append(jsonObject, logAltMessage.category, Level.INFO)
+        append(jsonObject, logAltMessage.category)
       }
 
-      def receiveLogSlf4j(logSlf4j: LogSlf4j): Unit = {
-        val jsonObject = generateLogSlf4jJson(logSlf4j, slf4jLogLevel)
-        jsonObject.foreach(json => append(json, Category.Common.name, logSlf4j.level))
-      }
+      def receiveLogSlf4j(logSlf4j: LogSlf4j): Unit =
+        if (logSlf4j.level >= LoggingState.slf4jLogLevel) {
+          val jsonObject = generateLogSlf4jJson(logSlf4j, slf4jLogLevel)
+          jsonObject.foreach(json => append(json, Category.Common.name))
+        }
 
-      def receiveLogAkkaMessage(logAkka: LogAkka): Unit = {
-        val jsonObject = generateLogAkkaJson(logAkka, akkaLogLevel)
-        jsonObject.foreach(json => append(json, Category.Common.name, logAkka.level))
-      }
+      def receiveLogAkkaMessage(logAkka: LogAkka): Unit =
+        if (logAkka.level >= LoggingState.akkaLogLevel) {
+          val jsonObject = generateLogAkkaJson(logAkka, akkaLogLevel)
+          jsonObject.foreach(json => append(json, Category.Common.name))
+        }
 
-      def receiveLog(log: Log): Unit = append(createJsonFromLog(log), Category.Common.name, log.level)
+      def receiveLog(log: Log): Unit = {
+        if (log.level >= LoggingState.logLevel)
+          append(createJsonFromLog(log), Category.Common.name)
+      }
 
       Behaviors
         .receiveMessage[LogActorMessages] {

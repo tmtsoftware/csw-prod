@@ -26,11 +26,13 @@ public class JTimeServiceSchedulerTest extends JUnitSuite {
     @Rule
     public TestKitJunitResource testKit = new TestKitJunitResource(ManualTime.config());
 
-    private ManualTime manualTime = ManualTime.get(testKit.system());
+    private akka.actor.typed.ActorSystem<Void> typedSystem = testKit.system();
+    private ManualTime manualTime = ManualTime.get(typedSystem);
 
-    private TimeServiceScheduler timeServiceScheduler = TimeServiceSchedulerFactory.make(testKit.system());
+    private TimeServiceScheduler timeServiceScheduler =
+            new TimeServiceSchedulerFactory(typedSystem.scheduler()).make(typedSystem.executionContext());
 
-    private ActorSystem untypedSystem = ActorSystemAdapter.toUntyped(testKit.system());
+    private ActorSystem untypedSystem = ActorSystemAdapter.toUntyped(typedSystem);
     private TestKit untypedTestKit = new TestKit(untypedSystem);
 
     //------------------------------Scheduling-------------------------------

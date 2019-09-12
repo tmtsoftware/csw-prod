@@ -215,4 +215,17 @@ class RedisFailureTest extends FunSuite with Matchers with MockitoSugar with Bef
     testProbe.expectNoMessage(500.millis)
   }
 
+  test("should fail with EventServerNotAvailable for get event when redis is down") {
+    import redisTestProps._
+
+    val subscriber = eventService.makeNewSubscriber()
+    val event      = Utils.makeEvent(1)
+    Thread.sleep(1000)
+    redisServer.stop()
+
+    intercept[EventServerNotAvailable] {
+      subscriber.get(Set(event.eventKey)).await(1.second)
+    }
+    redisServer.start()
+  }
 }

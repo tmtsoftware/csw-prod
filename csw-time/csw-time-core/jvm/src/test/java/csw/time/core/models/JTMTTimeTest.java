@@ -6,9 +6,11 @@ import csw.time.core.models.utils.TestProperties;
 import csw.time.core.models.utils.TestUtil;
 import org.junit.Test;
 import org.scalatestplus.junit.JUnitSuite;
+import scala.concurrent.duration.FiniteDuration;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.TimeUnit;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -67,6 +69,25 @@ public class JTMTTimeTest extends JUnitSuite {
 
         assertEquals(expectedMillis, taiTime.value().toEpochMilli(), jitter);
     }
+
+    //DEOPSESW-122: Time Dsl for script writer to schedule tasks after specified time
+    @Test
+    public void should_get_tai_time_after_specified_duration() {
+        FiniteDuration duration = new FiniteDuration(1, TimeUnit.SECONDS);
+        TAITime futureTime = TAITime.after(duration);
+
+        assertEquals(futureTime.durationFromNow().toMillis(), duration.toMillis(), jitter);
+    }
+
+    //DEOPSESW-122: Time Dsl for script writer to schedule tasks after specified time
+    @Test
+    public void should_get_utc_time_after_specified_duration() {
+        FiniteDuration duration = new FiniteDuration(1, TimeUnit.SECONDS);
+        UTCTime futureTime = UTCTime.after(duration);
+
+        assertEquals(futureTime.durationFromNow().toMillis(), duration.toMillis(), jitter);
+    }
+
 
     @Test
     public void should_get_tai_offset() {

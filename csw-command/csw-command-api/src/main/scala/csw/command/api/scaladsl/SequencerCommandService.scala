@@ -16,5 +16,5 @@ trait SequencerCommandService {
    * @param sequence the [[csw.params.commands.Sequence]] payload
    * @return a SubmitResponse as a Future value
    */
-  def submit(sequence: Sequence): Future[SubmitResponse]
+  def submitAndWait(sequence: Sequence): Future[SubmitResponse]
 }

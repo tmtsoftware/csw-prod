@@ -1,5 +1,5 @@
 package csw.framework.models
-import akka.actor.typed
+import akka.actor.{Scheduler, typed}
 import akka.actor.typed.SpawnProtocol
 import csw.alarm.api.scaladsl.AlarmService
 import csw.alarm.client.AlarmServiceFactory
@@ -58,11 +58,12 @@ object CswContext {
   )(implicit richSystem: CswFrameworkSystem): Future[CswContext] = {
 
     implicit val typedSystem: typed.ActorSystem[SpawnProtocol] = richSystem.system
+    implicit val scheduler: Scheduler                          = richSystem.scheduler
     implicit val ec: ExecutionContextExecutor                  = typedSystem.executionContext
 
     val eventService         = eventServiceFactory.make(locationService)
     val alarmService         = alarmServiceFactory.makeClientApi(locationService)
-    val timeServiceScheduler = TimeServiceSchedulerFactory.make()
+    val timeServiceScheduler = new TimeServiceSchedulerFactory().make()
 
     val loggerFactory       = new LoggerFactory(componentInfo.name)
     val configClientService = ConfigClientFactory.clientApi(typedSystem, locationService)

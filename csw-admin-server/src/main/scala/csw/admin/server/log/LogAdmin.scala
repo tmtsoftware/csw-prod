@@ -8,6 +8,7 @@ import csw.admin.server.wiring.ActorRuntime
 import csw.command.client.extensions.AkkaLocationExt.RichAkkaLocation
 import csw.command.client.messages.{GetComponentLogMetadata, SetComponentLogLevel}
 import csw.location.api.scaladsl.LocationService
+import csw.location.models.ComponentType.Sequencer
 import csw.location.models.Connection.{AkkaConnection, HttpConnection, TcpConnection}
 import csw.location.models.{AkkaLocation, Connection, Location}
 import csw.logging.api.scaladsl.Logger
@@ -36,7 +37,13 @@ class LogAdmin(locationService: LocationService, actorRuntime: ActorRuntime) {
             "location"      -> location.toString
           )
         )
-        await(location.componentRef ? (GetComponentLogMetadata(componentName, _)))
+
+        val metadataF: Future[LogMetadata] = location.connection.componentId.componentType match {
+          case Sequencer => location.sequencerRef ? (GetComponentLogMetadata(componentName, _))
+          case _         => location.componentRef ? (GetComponentLogMetadata(componentName, _))
+        }
+
+        await(metadataF)
       case _ => throw UnresolvedAkkaLocationException(componentFullName)
     }
   }
@@ -53,7 +60,10 @@ class LogAdmin(locationService: LocationService, actorRuntime: ActorRuntime) {
               "location"      -> location.toString
             )
           )
-          location.componentRef ! SetComponentLogLevel(componentName, logLevel)
+          location.connection.componentId.componentType match {
+            case Sequencer => location.sequencerRef ! SetComponentLogLevel(componentName, logLevel)
+            case _         => location.componentRef ! SetComponentLogLevel(componentName, logLevel)
+          }
         case _ => throw UnresolvedAkkaLocationException(componentFullName)
       }
     }

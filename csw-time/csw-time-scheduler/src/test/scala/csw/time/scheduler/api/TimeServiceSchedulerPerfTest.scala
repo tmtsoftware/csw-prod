@@ -12,12 +12,14 @@ import csw.time.scheduler.TimeServiceSchedulerFactory
 import org.HdrHistogram.Histogram
 import org.scalatest.{BeforeAndAfterAll, FunSuiteLike}
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.DurationInt
 
 class TimeServiceSchedulerPerfTest extends ScalaTestWithActorTestKit with FunSuiteLike with BeforeAndAfterAll {
 
-  private val sys         = ActorSystem(Behaviors.empty, "test")
-  private val timeService = TimeServiceSchedulerFactory.make()(sys)
+  private val sys                                         = ActorSystem(Behaviors.empty, "test")
+  private implicit val executionContext: ExecutionContext = sys.executionContext
+  private val timeService                                 = new TimeServiceSchedulerFactory().make()
 
   for (scenario <- TestSettings.all) {
     import scenario._

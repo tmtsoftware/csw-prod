@@ -3,12 +3,14 @@ package romaine.async
 import akka.Done
 import io.lettuce.core.api.async.RedisAsyncCommands
 import romaine.RedisResult
+import romaine.exceptions.RedisServerNotAvailable
 import romaine.extensions.FutureExtensions.RichFuture
 
 import scala.jdk.CollectionConverters._
 import scala.compat.java8.FutureConverters.CompletionStageOps
 import scala.compat.java8.OptionConverters.RichOptionalGeneric
 import scala.concurrent.{ExecutionContext, Future}
+import scala.util.control.NonFatal
 
 class RedisAsyncApi[K, V](redisAsyncCommands: Future[RedisAsyncCommands[K, V]])(implicit ec: ExecutionContext) {
 
@@ -23,7 +25,10 @@ class RedisAsyncApi[K, V](redisAsyncCommands: Future[RedisAsyncCommands[K, V]])(
       _.setex(key, seconds, value).toScala.failWith(s"Redis 'SETEX' operation failed for [key: $key, value: $value]")
     )
 
-  def get(key: K): Future[Option[V]] = redisAsyncCommands.flatMap(_.get(key).toScala.map(Option(_)))
+  def get(key: K): Future[Option[V]] =
+    redisAsyncCommands.flatMap(_.get(key).toScala.map(Option(_))).recover {
+      case NonFatal(ex) => throw RedisServerNotAvailable(ex.getCause)
+    }
 
   def mget(keys: List[K]): Future[List[RedisResult[K, Option[V]]]] =
     redisAsyncCommands.flatMap(

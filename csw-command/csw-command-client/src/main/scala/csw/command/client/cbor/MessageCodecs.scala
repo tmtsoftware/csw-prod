@@ -18,7 +18,7 @@ import csw.command.client.messages.RunningMessage.Lifecycle
 import csw.command.client.messages.SupervisorContainerCommonMessages.{Restart, Shutdown}
 import csw.command.client.messages.SupervisorLockMessage.{Lock, Unlock}
 import csw.command.client.messages._
-import csw.command.client.messages.sequencer.LoadAndStartSequence
+import csw.command.client.messages.sequencer.SubmitSequenceAndWait
 import csw.command.client.models.framework.LockingResponse._
 import csw.command.client.models.framework.PubSub.{Publish, PublisherMessage, SubscriberMessage}
 import csw.command.client.models.framework.{PubSub, _}
@@ -101,12 +101,12 @@ trait MessageCodecs extends ParamCodecs with LoggingCodecs with LocationCodecs {
   implicit lazy val setComponentLogLevelCodec: Codec[SetComponentLogLevel]             = deriveCodec[SetComponentLogLevel]
   implicit lazy val getComponentLogMetadataCodec: Codec[GetComponentLogMetadata]       = deriveCodec[GetComponentLogMetadata]
   implicit lazy val getComponentsCodec: Codec[GetComponents]                           = deriveCodec[GetComponents]
-  implicit lazy val logControlMessagesCodec: Codec[LogControlMessages]                 = deriveCodec[LogControlMessages]
+  implicit lazy val logControlMessageCodec: Codec[LogControlMessage]                   = deriveCodec[LogControlMessage]
   implicit lazy val componentStateSubscriptionCodec: Codec[ComponentStateSubscription] = deriveCodec[ComponentStateSubscription]
   implicit lazy val startedCommandSubscriptionCodec: Codec[StartedCommandSubscription] = deriveCodec[StartedCommandSubscription]
   implicit lazy val messageRemoteMsgCodec: Codec[RemoteMsg]                            = deriveCodec[RemoteMsg]
 
   // ************************ SequencerMsg Codecs ********************
 
-  implicit lazy val loadAndStartSequenceCodec: Codec[LoadAndStartSequence] = deriveCodec[LoadAndStartSequence]
+  implicit lazy val submitSequenceAndWaitCodec: Codec[SubmitSequenceAndWait] = deriveCodec[SubmitSequenceAndWait]
 }

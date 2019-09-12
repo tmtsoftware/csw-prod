@@ -21,7 +21,7 @@ public class JSchedulerExamples {
     public JSchedulerExamples(ActorSystem<Object> actorSystem) {
         //#create-scheduler
         // create time service scheduler using the factory method
-        TimeServiceScheduler scheduler = TimeServiceSchedulerFactory.make(actorSystem);
+        TimeServiceScheduler scheduler = new TimeServiceSchedulerFactory(actorSystem.scheduler()).make( actorSystem.executionContext());
         //#create-scheduler
 
         this.scheduler = scheduler;

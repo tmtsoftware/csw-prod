@@ -31,4 +31,18 @@ class TMTTimeTest extends FunSuite {
     val futureTime       = UTCTime(Instant.now().plusSeconds(1))
     futureTime.durationFromNow.toMillis shouldBe expectedDuration
   }
+
+  test("should give utc time after specified duration") {
+    val tenSeconds = 10.seconds
+    val futureTime = UTCTime.after(tenSeconds)
+
+    futureTime.durationFromNow.toMillis shouldBe (tenSeconds.toMillis +- jitter.millis.toMillis)
+  }
+
+  test("should give tai time after specified duration") {
+    val tenSeconds = 10.seconds
+    val futureTime = TAITime.after(tenSeconds)
+
+    futureTime.durationFromNow.toMillis shouldBe (tenSeconds.toMillis +- jitter.millis.toMillis)
+  }
 }

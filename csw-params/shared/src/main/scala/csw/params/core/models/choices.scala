@@ -70,7 +70,8 @@ object Choices {
    * @return an instance of Choices
    */
   @varargs
-  def from(choices: String*): Choices = Choices(choices.map(Choice(_)).toSet)
+  def from(choices: String*): Choices               = Choices(choices.map(Choice(_)).toSet)
+  def from(choices: java.util.Set[String]): Choices = from(choices.asScala.toSeq: _*)
 
   /**
    * Creates Choices from provided values
@@ -79,5 +80,6 @@ object Choices {
    * @return an instance of Choices
    */
   @varargs
-  def fromChoices(choices: Choice*): Choices = Choices(choices.toSet)
+  def fromChoices(choices: Choice*): Choices               = Choices(choices.toSet)
+  def fromChoices(choices: java.util.Set[Choice]): Choices = fromChoices(choices.asScala.toSeq: _*)
 }

@@ -34,7 +34,7 @@ object SequencerCommandServiceExample extends App {
   // #submit-sequence
   val sequence: Sequence = Sequence(Setup(Prefix("test.move"), CommandName("command-1"), None))
 
-  private val submitResponse: SubmitResponse = Await.result(sequencerCommandService.submit(sequence), 5.seconds)
+  private val submitResponse: SubmitResponse = Await.result(sequencerCommandService.submitAndWait(sequence), 5.seconds)
   // #submit-sequence
 
 }

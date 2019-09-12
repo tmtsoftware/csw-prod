@@ -75,6 +75,8 @@ object UTCTime {
    * @return current time in UTC scale
    */
   def now(): UTCTime = UTCTime(clock.utcInstant)
+
+  def after(duration: FiniteDuration): UTCTime = UTCTime(now().value.plusNanos(duration.toNanos))
 }
 
 /**
@@ -108,6 +110,8 @@ object TAITime {
    * @return current time in TAI scale
    */
   def now(): TAITime = TAITime(clock.taiInstant)
+
+  def after(duration: FiniteDuration): TAITime = TAITime(now().value.plusNanos(duration.toNanos))
 
   /**
    * Fetches UTC to TAI offset by doing a native call to `ntp_gettimex` in case of a Linux machine.

@@ -2,7 +2,7 @@ package csw.command.client.internal
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import akka.actor.typed.javadsl.Behaviors
-import csw.command.client.messages.sequencer.{LoadAndStartSequence, SequencerMsg}
+import csw.command.client.messages.sequencer.{SubmitSequenceAndWait, SequencerMsg}
 import csw.location.api.extensions.ActorExtension.RichActor
 import csw.location.models.Connection.AkkaConnection
 import csw.location.models.{AkkaLocation, ComponentId, ComponentType}
@@ -26,7 +26,7 @@ class SequencerCommandServiceImplTest
     val submitResponse: SubmitResponse = Completed(CommandName("Sequence"), Id())
 
     val sequencer = spawn(Behaviors.receiveMessage[SequencerMsg] {
-      case LoadAndStartSequence(`sequence`, replyTo) =>
+      case SubmitSequenceAndWait(`sequence`, replyTo) =>
         replyTo ! submitResponse
         Behaviors.same
       case _ => Behaviors.same
@@ -37,6 +37,6 @@ class SequencerCommandServiceImplTest
 
     val sequencerCommandService = new SequencerCommandServiceImpl(location)
 
-    sequencerCommandService.submit(sequence).futureValue should ===(submitResponse)
+    sequencerCommandService.submitAndWait(sequence).futureValue should ===(submitResponse)
   }
 }
