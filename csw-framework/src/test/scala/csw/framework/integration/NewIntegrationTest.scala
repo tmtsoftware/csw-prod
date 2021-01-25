@@ -9,6 +9,7 @@ import csw.command.client.models.framework.LocationServiceUsage.RegisterOnly
 import csw.command.client.models.framework.{ComponentInfo, LifecycleStateChanged, SupervisorLifecycleState}
 import csw.common.components.command
 import csw.framework.internal.supervisor.SupervisorBehavior2
+import csw.framework.internal.supervisor.SupervisorBehavior2.Supervisor2Message
 import csw.framework.internal.wiring.{CswFrameworkSystem, FrameworkWiring}
 import csw.framework.models.CswContext
 import csw.framework.scaladsl.RegistrationFactory
@@ -43,7 +44,7 @@ class NewIntegrationTest extends ScalaTestWithActorTestKit(TestApp.typedSystem) 
 
   import TestApp._
   import typedSystem.executionContext
-
+/*
   def create(
       componentInfo: ComponentInfo
   )(implicit actorSystem: ActorSystem[SpawnProtocol.Command]): Future[(CswContext, RegistrationFactory)] = {
@@ -53,11 +54,24 @@ class NewIntegrationTest extends ScalaTestWithActorTestKit(TestApp.typedSystem) 
       val richSystem = new CswFrameworkSystem(actorRuntime.actorSystem)
       //val componentInfo = ConfigParser.parseStandalone(componentConf)
       //LoggingSystemFactory.start("logging", "1", "localhost", typedSystem)
-
       (
         await(CswContext.make(locationService, eventServiceFactory, alarmServiceFactory, componentInfo)(richSystem)),
         registrationFactory
       )
+    }
+  }
+*/
+  def create(
+              componentInfo: ComponentInfo
+            )(implicit actorSystem: ActorSystem[SpawnProtocol.Command]): Future[ActorRef[SupervisorMessage]] = {
+    async {
+      val wiring = FrameworkWiring.make(actorSystem)
+      import wiring._
+      val richSystem = new CswFrameworkSystem(actorRuntime.actorSystem)
+      //val componentInfo = ConfigParser.parseStandalone(componentConf)
+      //LoggingSystemFactory.start("logging", "1", "localhost", typedSystem)
+      val cswContext = await(CswContext.make(locationService, eventServiceFactory, alarmServiceFactory, componentInfo)(richSystem))
+      await(richSystem.spawnTyped(SupervisorBehavior2(command.TestComponent(cswContext), registrationFactory, cswContext), "svr"))
     }
   }
 
@@ -73,11 +87,11 @@ class NewIntegrationTest extends ScalaTestWithActorTestKit(TestApp.typedSystem) 
 
     //  val cswContext          = result._1
     //    val registrationFactory = result._2
-    val (cswContext, registrationFactory) = Await.result(create(assemblyInfo), 10.seconds)
-
     println("Creating super now")
-    val testSuper =
-      spawn(SupervisorBehavior2(command.TestComponent(cswContext), registrationFactory, cswContext))
+
+    val testSuper = Await.result(create(assemblyInfo), 10.seconds)
+
+  //val testSuper = spawn(SupervisorBehavior2(command.TestComponent(cswContext), registrationFactory, cswContext))
 
     println(s"testSuper: $testSuper")
 
@@ -94,7 +108,7 @@ class NewIntegrationTest extends ScalaTestWithActorTestKit(TestApp.typedSystem) 
     println("Got the damn Idle")
     stateChangeProbe.expectMessage(
       4.seconds,
-      LifecycleStateChanged(testSuper, SupervisorLifecycleState.Registering(cswContext.componentInfo.prefix))
+      LifecycleStateChanged(testSuper, SupervisorLifecycleState.Registering(assemblyInfo.prefix))
     )
 
     println("Waiting 15 seconds")
