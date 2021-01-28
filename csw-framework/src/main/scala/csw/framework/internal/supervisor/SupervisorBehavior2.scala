@@ -35,8 +35,7 @@ import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 object SupervisorBehavior2 {
 
-  sealed trait Supervisor2Message
-  case object test extends Supervisor2Message
+  sealed trait Supervisor2Message extends akka.actor.NoSerializationVerificationNeeded
 
   private val InitializeTimerKey = "initialize-timer"
   private val ShutdownTimerKey   = "shutdown-timer"
@@ -105,6 +104,7 @@ object SupervisorBehavior2 {
       // Stash here saves commands issued during initialization.  They are played back when entering Running
       Behaviors.withStash(capacity = 10) { buffer =>
         println("Sending TLAStart")
+        Thread.sleep(200)
         superCtx.self ! TLAStart(tlaInitBehavior, 0, 2.seconds)
         new SupervisorBehavior2(tlaInitBehavior, registrationFactory, cswCtx, svr, superCtx).starting(buffer)
       }
@@ -276,7 +276,7 @@ object SupervisorBehavior2 {
       val componentInfo = cswCtx.componentInfo
       val prefix        = componentInfo.prefix
 
-      stateHandler ! UpdateState(SupervisorLifecycleState.Registering(prefix))
+      stateHandler ! UpdateState(SupervisorLifecycleState.Registering /*(prefix)*/)
 
       val locationHelper =
         superCtx.spawn(SupervisorLocationHelper(registrationFactory, cswCtx), "LocationHelper")
@@ -445,7 +445,7 @@ object SupervisorBehavior2 {
       log.debug(s"Un-registering supervisor from location service")
       println("Un-registering supervisor from location service")
 
-      stateHandler ! UpdateState(SupervisorLifecycleState.Unregistering(cswCtx.componentInfo.prefix))
+      stateHandler ! UpdateState(SupervisorLifecycleState.Unregistering /*(cswCtx.componentInfo.prefix)*/)
 
       val locationHelper =
         superCtx.spawn(SupervisorLocationHelper(registrationFactory, cswCtx), "LocationHelper")

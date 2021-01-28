@@ -18,7 +18,7 @@ import scala.util.{Failure, Success}
 
 private[framework] object SupervisorLocationHelper {
 
-  sealed trait SupervisorLocationMessage
+  sealed trait SupervisorLocationMessage extends akka.actor.NoSerializationVerificationNeeded
 
   case class Register(
       componentInfo: ComponentInfo,

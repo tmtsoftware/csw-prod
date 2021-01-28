@@ -23,12 +23,12 @@ object SupervisorLifecycleState extends Enum[SupervisorLifecycleState] {
   /**
   * Indicates that the component has initialized and is registering with Location Service
   */
-  case class Registering(prefix: Prefix) extends SupervisorLifecycleState
+  case /*class*/ object Registering /*(prefix: Prefix)*/ extends SupervisorLifecycleState
 
   /**
    * Indicates that the component is un-registering with Location Service
    */
-  case class Unregistering(prefix: Prefix) extends SupervisorLifecycleState
+  case /*class*/ object Unregistering /*(prefix: Prefix)*/ extends SupervisorLifecycleState
 
   /**
    * Represents a running state of component where it is initialized, registered with location service and waiting for commands

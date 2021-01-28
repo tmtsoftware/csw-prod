@@ -1,14 +1,11 @@
 package csw.common.components.command
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior}
-import csw.common.components.command.CommandComponentState._
+import akka.actor.typed.Behavior
 import csw.framework.exceptions.FailureRestart
 import csw.framework.models.CswContext
 import csw.framework.scaladsl.TopLevelComponent._
-import csw.params.commands.CommandIssue
-import csw.params.commands.CommandResponse.{Accepted, Completed, Invalid, Started}
-import csw.time.core.models.UTCTime
+import csw.params.commands.CommandResponse.{Accepted, Completed}
 
 object TestCompInitException {
 

@@ -91,7 +91,7 @@ class NewTests extends ScalaTestWithActorTestKit with AnyFunSuiteLike with Befor
 
     stateChangeProbe.expectMessage(8.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Idle))
     println("Got the damn Idle")
-    stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Registering(cswContext.componentInfo.prefix)))
+    stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Registering))
 
     println("Waiting 15 seconds")
     stateChangeProbe.expectMessage(15.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Running))
@@ -144,7 +144,7 @@ class NewTests extends ScalaTestWithActorTestKit with AnyFunSuiteLike with Befor
     testSuper ! LifecycleStateSubscription2(stateChangeProbe.ref)
     stateChangeProbe.expectMessage(LifecycleStateChanged(testSuper, SupervisorLifecycleState.Idle))
 
-    stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Registering(cswContext.componentInfo.prefix)))
+    stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Registering))
 
     stateChangeProbe.expectMessage(LifecycleStateChanged(testSuper, SupervisorLifecycleState.Running))
     testSuper ! GetSupervisorLifecycleState(lifecycleStateProbe.ref)
@@ -338,14 +338,14 @@ class NewTests extends ScalaTestWithActorTestKit with AnyFunSuiteLike with Befor
 
     stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Idle))
     println("Got the damn Idle")
-    stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Registering(cswContext.componentInfo.prefix)))
+    stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Registering))
     println("Waiting 15 seconds")
     stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Running))
     println("Got the damn Running")
     Thread.sleep(2000)
     println("Sending Shutdown")
     testSuper ! SupervisorContainerCommonMessages.Shutdown
-    stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Unregistering(cswContext.componentInfo.prefix)))
+    stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Unregistering))
     stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Shutdown))
 
     Thread.sleep(4000)
@@ -370,13 +370,13 @@ class NewTests extends ScalaTestWithActorTestKit with AnyFunSuiteLike with Befor
 
     stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Idle))
     println("Got the damn Idle")
-    stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Registering(cswContext.componentInfo.prefix)))
+    stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Registering))
     stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Running))
     println("Got the damn Running")
     Thread.sleep(2000)
     println("Sending Restart")
     testSuper ! SupervisorContainerCommonMessages.Restart
-    stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Unregistering(cswContext.componentInfo.prefix)))
+    stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Unregistering))
     stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Restart))
 
 
@@ -401,7 +401,7 @@ class NewTests extends ScalaTestWithActorTestKit with AnyFunSuiteLike with Befor
     //  testSuper ! GetSupervisorLifecycleState(testState.ref)
 
     stateChangeProbe.expectMessage(8.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Idle))
-    stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Registering(cswContext.componentInfo.prefix)))
+    stateChangeProbe.expectMessage(4.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Registering))
     stateChangeProbe.expectMessage(15.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Running))
     println("Got the damn Running")
 

@@ -11,7 +11,7 @@ import csw.logging.api.scaladsl.Logger
 private[framework] object LifecycleHandler {
   import SupervisorLifecycleState._
 
-  sealed trait LifecycleHandlerMessage
+  sealed trait LifecycleHandlerMessage extends akka.actor.NoSerializationVerificationNeeded
   final case class UpdateState(update: SupervisorLifecycleState)                     extends LifecycleHandlerMessage
   final case class SubscribeState(subscriber:  ActorRef[LifecycleStateChanged])      extends LifecycleHandlerMessage
   final case class UnsubscribeState(subscriber:  ActorRef[LifecycleStateChanged])    extends LifecycleHandlerMessage
