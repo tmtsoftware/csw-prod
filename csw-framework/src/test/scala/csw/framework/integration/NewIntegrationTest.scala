@@ -5,6 +5,7 @@ import akka.actor.testkit.typed.scaladsl.{ScalaTestWithActorTestKit, TestProbe}
 import akka.actor.typed.{ActorSystem, SpawnProtocol}
 import csw.command.client.messages.ComponentCommonMessage.LifecycleStateSubscription2
 import csw.command.client.messages.SupervisorMessage
+import csw.command.client.models.framework
 import csw.command.client.models.framework.LocationServiceUsage.RegisterOnly
 import csw.command.client.models.framework.{ComponentInfo, LifecycleStateChanged, SupervisorLifecycleState}
 import csw.common.components.command
@@ -76,6 +77,19 @@ class NewIntegrationTest extends ScalaTestWithActorTestKit(TestApp.typedSystem) 
     super.afterAll()
   }
 
+  def waitForRunning(probe: TestProbe[LifecycleStateChanged]): List[SupervisorLifecycleState] = {
+    var states:List[SupervisorLifecycleState] = List.empty
+    val messages = probe.fishForMessage(10.seconds) {
+      case LifecycleStateChanged(publisher, state) =>
+        println(s"Received: $publisher and $state")
+        states = states :+ state
+        if (state == SupervisorLifecycleState.Running) {
+          FishingOutcome.Complete
+        } else FishingOutcome.Continue
+    }
+    states
+  }
+
   test("should create one") {
 
     // val testSuper = testActorSystem.spawn(SupervisorBehavior2(command.TestComponent(cswContext), registrationFactory, cswContext))
@@ -109,13 +123,7 @@ class NewIntegrationTest extends ScalaTestWithActorTestKit(TestApp.typedSystem) 
 
     println("Waiting 10 seconds")
 
-    val xx = stateChangeProbe.fishForMessage(10.seconds) {
-      case LifecycleStateChanged(publisher, state) =>
-        println(s"Received: $publisher and $state")
-        if (state == SupervisorLifecycleState.Running) {
-          FishingOutcome.Complete
-        } else FishingOutcome.Continue
-    }
+    val xx = waitForRunning(stateChangeProbe)
     println(s"The list of results: $xx")
 
 //    stateChangeProbe.expectMessage(15.seconds, LifecycleStateChanged(testSuper, SupervisorLifecycleState.Running))

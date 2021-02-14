@@ -2,7 +2,6 @@ package csw.framework.internal.supervisor
 
 import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.Behaviors
-import akka.actor.typed.scaladsl.ActorContext
 import csw.command.client.messages.SupervisorMessage
 import csw.command.client.models.framework.{LifecycleStateChanged, SupervisorLifecycleState}
 import csw.logging.client.scaladsl.LoggerFactory
@@ -17,7 +16,9 @@ private[framework] object LifecycleHandler {
   final case class UnsubscribeState(subscriber:  ActorRef[LifecycleStateChanged])    extends LifecycleHandlerMessage
   final case class GetState(client: ActorRef[StateResponse])                         extends LifecycleHandlerMessage
   final case class SendState(client: ActorRef[SupervisorLifecycleState])             extends LifecycleHandlerMessage
-  final case class StateResponse(supervisorLifecycleState: SupervisorLifecycleState) extends LifecycleHandlerMessage
+
+  sealed trait LifecycleHandlerResponse
+  final case class StateResponse(supervisorLifecycleState: SupervisorLifecycleState) extends LifecycleHandlerResponse
 
   private type Subscriber  = ActorRef[LifecycleStateChanged]
   private type Subscribers = List[ActorRef[LifecycleStateChanged]]

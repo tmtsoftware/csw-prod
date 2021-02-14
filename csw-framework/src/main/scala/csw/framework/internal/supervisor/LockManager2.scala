@@ -5,14 +5,13 @@ import akka.actor.typed.scaladsl.{ActorContext, Behaviors, TimerScheduler}
 import akka.actor.typed.{ActorRef, Behavior, PostStop}
 import akka.pattern.StatusReply
 import csw.command.client.models.framework.LockingResponse
-import csw.command.client.models.framework.LockingResponse._
 import csw.logging.client.scaladsl.LoggerFactory
 import csw.prefix.models.{Prefix, Subsystem}
 
 import scala.concurrent.duration.FiniteDuration
 
 object LockManager2 {
-  val AdminPrefix = Prefix(s"${Subsystem.CSW}.admin")
+  val AdminPrefix:Prefix = Prefix(s"${Subsystem.CSW}.admin")
 
   private val LockNotificationKey = "lockNotification"
   private val LockExpirationKey   = "lockExpiration"
@@ -31,114 +30,93 @@ object LockManager2 {
 
   final case class IsLocked(replyTo: ActorRef[LockManager2Response]) extends LockManager2Message
 
-  final case class LockPrefix(replyTo: ActorRef[LockManager2Response]) extends LockManager2Message
-
   final case class IsCommandPrefixAllowed(cmdPrefix: Prefix, replyTo: ActorRef[StatusReply[Done]]) extends LockManager2Message
 
-  private final case class LockTimedout(replyTo: ActorRef[LockingResponse]) extends LockManager2Message
+  private final case class LockTimeOut(replyTo: ActorRef[LockingResponse]) extends LockManager2Message
 
   private final case class LockAboutToTimeout(replyTo: ActorRef[LockingResponse]) extends LockManager2Message
 
   trait LockManager2Response
-
-  final case object Locked extends LockManager2Response
-
+  final case class Locked(prefix: Prefix) extends LockManager2Response
   final case object Unlocked extends LockManager2Response
 
-  final case object CommandPrefixAllowed extends LockManager2Response
+  def apply(loggerFactory: LoggerFactory): Behavior[LockManager2Message] = unlocked(loggerFactory)
 
-  final case object CommandPrefixNotAllowed extends LockManager2Response
+  private def unlocked(loggerFactory: LoggerFactory): Behavior[LockManager2Message] = {
+    val log = loggerFactory.getLogger
 
-  final case object LockReleased2 extends LockManager2Response
-
-  final case class LockReleaseFailed(sourcePrefix: Prefix, currentPrefix: Prefix) extends LockManager2Response
-
-  final case class AcquiringLockFailed2(prefix: Prefix, currentPrefix: Prefix) extends LockManager2Response
-
-  final case class LockPrefixResponse(prefix: Prefix) extends LockManager2Response
-
-  final case object Unhandled extends LockManager2Response
-
-  def apply(loggerFactory: LoggerFactory): Behavior[LockManager2Message] = {
-    println("Yes LockManager2")
-    unlocked(loggerFactory)
-  }
-
-  def unlocked(loggerFactory: LoggerFactory): Behavior[LockManager2Message] = {
     Behaviors.withTimers { timerScheduler =>
-      Behaviors.receiveMessage {
+      Behaviors.receiveMessagePartial {
         case LockComponent(lockPrefix, replyTo, svrReplyTo, leaseDuration) =>
-          println(s"Locking for: $lockPrefix and $replyTo")
-          //log.info(s"The lock is successfully acquired by component: $source")
-          timerScheduler.startSingleTimer(LockNotificationKey, LockAboutToTimeout(replyTo), leaseDuration - (leaseDuration / 10))
-          timerScheduler.startSingleTimer(LockExpirationKey, LockTimedout(replyTo), leaseDuration)
-          // Send client LockAcquired
-          replyTo ! LockAcquired
-          println(s"Sent lockAcquired to replyTo: $replyTo")
-          locked(svrReplyTo, timerScheduler, lockPrefix, loggerFactory)
-        case UnlockComponent(_, replyTo, _) =>
+          log.info(s"The lock is successfully acquired by component: $lockPrefix")
+          startTimerAndReply(timerScheduler, leaseDuration, replyTo)
+
+          // Send Locked to supervisor for updating internal state
+          svrReplyTo ! LockManager2.Locked(lockPrefix)
+          locked(loggerFactory, timerScheduler, lockPrefix, svrReplyTo)
+        case UnlockComponent(source, replyTo, _) =>
           // This shouldn't happen since super will be in locked state to get Unlocked, super refuses UnlockComponent
-          replyTo ! LockReleased
-          Behaviors.same
+          // The replyTo is required to behave like original LockManager: DEOPSCSW-222, DEOPSCSW-301
+          log.error(s"LockManager received an UnlockComponent from: $source while unlocked -- ignoring.")
+          replyTo ! LockingResponse.LockReleased
+          Behaviors.unhandled
         case IsLocked(replyTo) =>
           replyTo ! Unlocked
           Behaviors.same
-        case LockPrefix(svrReplyTo) =>
-          svrReplyTo ! Unhandled
-          Behaviors.unhandled
       }
     }
   }
 
-  def locked(
-      svrReplyTo: ActorRef[LockManager2Response],
+  private def locked(
+      loggerFactory: LoggerFactory,
       timerScheduler: TimerScheduler[LockManager2Message],
       lockPrefix: Prefix,
-      loggerFactory: LoggerFactory
+      svrReplyTo: ActorRef[LockManager2Response]
   ): Behavior[LockManager2Message] = {
+    val log = loggerFactory.getLogger
+
     Behaviors
       .receiveMessage[LockManager2Message] {
         case IsLocked(replyTo) =>
-          replyTo ! Locked
+          replyTo ! Locked(lockPrefix)
           Behaviors.same
         case LockAboutToTimeout(replyTo) =>
-          replyTo ! LockExpiringShortly
+          replyTo ! LockingResponse.LockExpiringShortly
           Behaviors.same
-        case LockTimedout(replyTo) =>
-          replyTo ! LockExpired
+        case LockTimeOut(replyTo) =>
+          replyTo ! LockingResponse.LockExpired
+          // Timeout means supervisor should go back to running state
+          svrReplyTo ! Unlocked
           Behaviors.stopped
         case LockComponent(source, replyTo, _, _) if source != lockPrefix =>
+          // This is the case where the locking component is not the same as the original locking component
           val failureReason =
-            s"Invalid source ${source} for acquiring lock. Lock is currently owned by component: ${lockPrefix}."
-          //log.error(failureReason)
-          println(failureReason)
+            s"Invalid source $source for acquiring lock. Lock is currently owned by component: $lockPrefix."
+          log.error(failureReason)
           // Client receives AcquireLockFailed
-          replyTo ! AcquiringLockFailed(failureReason)
+          replyTo ! LockingResponse.AcquiringLockFailed(failureReason)
           Behaviors.same
-        case LockComponent(_, replyTo, svrReplyTo, leaseDuration) =>
-          // Reacquire lock with current prefix
-          timerScheduler.startSingleTimer(LockNotificationKey, LockAboutToTimeout(replyTo), leaseDuration - (leaseDuration / 10))
-          timerScheduler.startSingleTimer(LockExpirationKey, LockTimedout(replyTo), leaseDuration)
-          // Send client LockAcquired
-          replyTo ! LockAcquired
-          locked(svrReplyTo, timerScheduler, lockPrefix, loggerFactory)
+        case LockComponent(_, replyTo, _, leaseDuration) =>
+          // Reacquire lock with current prefix, this re-ups the timer
+          startTimerAndReply(timerScheduler, leaseDuration, replyTo)
+          // No message to the supervisor here
+          locked(loggerFactory, timerScheduler, lockPrefix, svrReplyTo)
         case UnlockComponent(unlockPrefix, replyTo, svrReplyTo) =>
           if (unlockPrefix == lockPrefix || unlockPrefix == AdminPrefix) {
-            println(s"The lock is successfully released by component: ${unlockPrefix}")
-            replyTo ! LockReleased
+            log.info(s"The lock is successfully released by component: $unlockPrefix")
+            replyTo ! LockingResponse.LockReleased
             timerScheduler.cancel(LockNotificationKey)
             timerScheduler.cancel(LockExpirationKey)
-            svrReplyTo ! LockReleased2
+            // Tell the supervisor that the lock was successfully released
+            svrReplyTo ! Unlocked
             Behaviors.stopped
           }
           else {
-            println("Unlock failure")
             val failureReason =
-              s"Invalid prefix ${unlockPrefix} for releasing lock. Currently the component is locked by: ${lockPrefix}."
-            //log.error(failureReason)
-            println(failureReason)
-            replyTo ! ReleasingLockFailed(failureReason)
-            //svrReplyTo ! AcquiringLockFailed2(unlockPrefix, lockPrefix)
+              s"Invalid prefix $unlockPrefix for releasing lock. Currently the component is locked by: $lockPrefix."
+            log.error(failureReason)
+            replyTo ! LockingResponse.ReleasingLockFailed(failureReason)
+            // No need to alert supervisor of this condition because component is still locked
             Behaviors.same
           }
         case IsCommandPrefixAllowed(unlockPrefix, replyTo) =>
@@ -149,15 +127,21 @@ object LockManager2 {
             replyTo ! StatusReply.Error(s"Prefix: $unlockPrefix is not allowed.")
           }
           Behaviors.same
-        case LockPrefix(replyTo) =>
-          replyTo ! LockPrefixResponse(lockPrefix)
-          Behaviors.stopped
       }
       .receiveSignal {
-        case (context: ActorContext[LockManager2Message], PostStop) =>
-          println(s"PostStop signal received for lockManager: $lockPrefix.")
+        case (_: ActorContext[LockManager2Message], PostStop) =>
+          log.debug(msg = s"PostStop signal received for lockManager: $lockPrefix.")
           Behaviors.same
       }
   }
 
+  // Private def to reuse code fragment
+  private def startTimerAndReply(timerScheduler: TimerScheduler[LockManager2Message],
+                                 leaseDuration: FiniteDuration,
+                                 replyTo: ActorRef[LockingResponse]): Unit = {
+    timerScheduler.startSingleTimer(LockNotificationKey, LockAboutToTimeout(replyTo), leaseDuration - (leaseDuration / 10))
+    timerScheduler.startSingleTimer(LockExpirationKey, LockTimeOut(replyTo), leaseDuration)
+    // Send client LockAcquired, no need to update supervisor
+    replyTo ! LockingResponse.LockAcquired
+  }
 }

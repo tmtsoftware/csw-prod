@@ -1,6 +1,5 @@
 package csw.command.client.models.framework
 
-import csw.prefix.models.Prefix
 import csw.serializable.CommandSerializable
 import enumeratum.{Enum, EnumEntry}
 
@@ -19,6 +18,11 @@ object SupervisorLifecycleState extends Enum[SupervisorLifecycleState] {
    * Represents an idle state of a component where it is waiting for TLA to initialize
    */
   case object Idle extends SupervisorLifecycleState
+
+  /**
+   * Indicates that the component TLA is initializing
+   */
+  case /*class*/ object Initializing /*(prefix: Prefix)*/ extends SupervisorLifecycleState
 
   /**
   * Indicates that the component has initialized and is registering with Location Service

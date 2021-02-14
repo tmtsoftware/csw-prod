@@ -3,47 +3,56 @@ package csw.framework.internal.supervisor
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{ActorRef, Behavior, PostStop}
 import csw.command.client.MiniCRM.CRMMessage
-import csw.command.client.MiniCRM.MiniCRMMessage.{AddStarted, AddResponse}
-import csw.framework.scaladsl.TopLevelComponent.{Oneway2, RunningMessage, Submit2, Validate2}
+import csw.command.client.MiniCRM.MiniCRMMessage.{AddResponse, AddStarted}
+import csw.framework.scaladsl.TopLevelComponent
+import csw.logging.client.scaladsl.LoggerFactory
 import csw.params.commands.CommandResponse._
 import csw.params.commands.{CommandResponse, ControlCommand}
 import csw.params.core.models.Id
 
 object CommandHelper {
+  import TopLevelComponent.RunningMessage
 
-  def apply(id: Id, tla: ActorRef[RunningMessage], cmdMsg: ControlCommand, crm: ActorRef[CRMMessage], replyTo: ActorRef[SubmitResponse]): Behavior[CommandResponse] = {
-    println(s"Started CommandHelper for: $replyTo and ID: $id")
+  def apply(
+      id: Id,
+      tla: ActorRef[RunningMessage],
+      cmdMsg: ControlCommand,
+      crm: ActorRef[CRMMessage],
+      loggerFactory: LoggerFactory,
+      replyTo: ActorRef[SubmitResponse]
+  ): Behavior[CommandResponse] = {
+    val log = loggerFactory.getLogger
+
+    log.debug(s"Started CommandHelper for command: $cmdMsg with id: $id and replyTo: $replyTo")
+
     Behaviors.setup { context =>
-
-      tla ! Validate2(id, cmdMsg, context.self.narrow[ValidateCommandResponse])
+      // First send the validate request
+      tla ! RunningMessage.Validate(id, cmdMsg, context.self.narrow[ValidateCommandResponse])
 
       Behaviors.receiveMessage[CommandResponse] {
-        case a: Accepted =>
-          println(s"Command with id: $id Accepted")
-          //replyTo ! a.asInstanceOf[SubmitResponse]
-          tla ! Submit2(id, cmdMsg, context.self)
+        case _: Accepted =>
+          log.debug(s"Command with id: $id Accepted")
+          tla ! RunningMessage.Submit(id, cmdMsg, context.self)
           Behaviors.same
-        case i: Invalid =>
-          println(s"Command is invalid: $id ${i.issue}")
-          replyTo ! i
+        case invalid: Invalid =>
+          replyTo ! invalid
           Behaviors.stopped
         case c: Completed =>
-          println(s"$c: $id")
           crm ! AddResponse(c)
           replyTo ! c
           Behaviors.stopped
         case e: Error =>
-          println(s"$e: $id")
           crm ! AddResponse(e)
           replyTo ! e
           Behaviors.stopped
         case c: Cancelled =>
-          println(s"$c: $id")
           crm ! AddResponse(c)
           replyTo ! c
           Behaviors.stopped
+        case l: Locked =>
+          crm ! AddResponse(l)
+          Behaviors.stopped
         case s: Started =>
-          println(s"Started: $id")
           crm ! AddStarted(s)
           replyTo ! s
           Behaviors.same
@@ -52,60 +61,65 @@ object CommandHelper {
           println(s"PostStop signal for command $id received")
           Behaviors.same
       }
-      */
+       */
     }
   }
 }
 
 object ValidateHelper {
 
-  def apply(id: Id, replyTo: ActorRef[ValidateResponse]): Behavior[ValidateCommandResponse] = {
-    println(s"Started ValidateHelper for: $replyTo, $Id")
+  def apply(id: Id, loggerFactory: LoggerFactory, replyTo: ActorRef[ValidateResponse]): Behavior[ValidateCommandResponse] = {
+    val log = loggerFactory.getLogger
 
-    Behaviors.receiveMessage[ValidateCommandResponse] {
-      case vr: ValidateCommandResponse =>
-        println(s"Helping with $vr")
-        replyTo ! vr.asInstanceOf[ValidateResponse]
-        Behaviors.stopped
-      case other =>
-        println(s"ERROR: Helper received unexpected: $other")
-        Behaviors.same
-    }.receiveSignal {
-      case (context: ActorContext[ValidateCommandResponse], PostStop) =>
-        println(s"PostStop signal for $id receive")
-        Behaviors.same
-    }
+    log.debug(s"Started ValidateHelper for: $Id:$replyTo")
+
+    Behaviors
+      .receiveMessage[ValidateCommandResponse] {
+        vr: ValidateCommandResponse =>
+          replyTo ! vr.asInstanceOf[ValidateResponse]
+          Behaviors.stopped
+      }
+      .receiveSignal {
+        case (_: ActorContext[ValidateCommandResponse], PostStop) =>
+          log.debug(s"ValidateHelper received postStop signal for: $id")
+          Behaviors.same
+      }
   }
-
 }
 
 object OnewayHelper {
+  import TopLevelComponent.RunningMessage
 
-  def apply(id: Id, tla: ActorRef[RunningMessage], cmdMsg: ControlCommand, replyTo: ActorRef[OnewayResponse]): Behavior[ValidateCommandResponse] = {
-    println(s"Started Oneway for: $replyTo, $Id")
+  def apply(
+      id: Id,
+      tla: ActorRef[RunningMessage],
+      cmdMsg: ControlCommand,
+      loggerFactory: LoggerFactory,
+      replyTo: ActorRef[OnewayResponse]
+  ): Behavior[ValidateCommandResponse] = {
+    val log = loggerFactory.getLogger
+
+    log.debug(s"Started Oneway Helper for: $Id:$replyTo")
 
     Behaviors.setup { context =>
+      tla ! RunningMessage.Validate(id, cmdMsg, context.self.narrow[ValidateCommandResponse])
 
-      tla ! Validate2(id, cmdMsg, context.self.narrow[ValidateCommandResponse])
-
-      Behaviors.receiveMessage[ValidateCommandResponse] {
-        case r@Accepted(id) =>
-          println(s"Oneway with id: $id Accepted")
-          replyTo ! r.asInstanceOf[OnewayResponse]
-          tla ! Oneway2(id, cmdMsg)
-          Behaviors.stopped
-        case r@Invalid(id, _) =>
-          println(s"Oneway with id: $id Invalid")
-          replyTo ! r.asInstanceOf[OnewayResponse]
-          Behaviors.stopped
-        case other =>
-          println(s"ERROR: Helper received unexpected: $other")
-          Behaviors.same
-      }.receiveSignal {
-        case (context: ActorContext[ValidateCommandResponse], PostStop) =>
-          println(s"PostStop signal for $id receive")
-          Behaviors.same
-      }
+      Behaviors
+        .receiveMessage[ValidateCommandResponse] {
+          case r @ Accepted(id) =>
+            log.debug(s"Oneway with id: $id Accepted")
+            replyTo ! r.asInstanceOf[OnewayResponse]
+            tla ! RunningMessage.Oneway(id, cmdMsg)
+            Behaviors.stopped
+          case r:Invalid =>
+            replyTo ! r.asInstanceOf[OnewayResponse]
+            Behaviors.stopped
+        }
+        .receiveSignal {
+          case (_: ActorContext[ValidateCommandResponse], PostStop) =>
+            log.debug(s"OnewayHelper received postStop signal for: $id")
+            Behaviors.same
+        }
     }
 
   }

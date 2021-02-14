@@ -1,20 +1,18 @@
 package csw.framework.internal.supervisor
 
-import akka.actor.typed.scaladsl.{ActorContext, Behaviors, StashBuffer}
+import akka.Done
+import akka.actor.typed.scaladsl.{ActorContext, Behaviors, StashBuffer, TimerScheduler}
 import akka.actor.typed.{ActorRef, Behavior}
+import akka.http.scaladsl.Http.ServerBinding
 import csw.command.client.MiniCRM
 import csw.command.client.MiniCRM.MiniCRMMessage
-import csw.command.client.MiniCRM.MiniCRMMessage.Print
 import csw.command.client.messages.CommandMessage.{Oneway, Submit, Validate}
-import csw.command.client.messages.ComponentCommonMessage.{
-  GetSupervisorLifecycleState,
-  LifecycleStateSubscription2,
-  TrackingEventReceived
-}
+import csw.command.client.messages.ComponentCommonMessage.{ComponentStateSubscription, GetSupervisorLifecycleState, LifecycleStateSubscription2, TrackingEventReceived}
+import csw.command.client.messages.DiagnosticDataMessage.{DiagnosticMode, OperationsMode}
 import csw.command.client.messages.RunningMessage.Lifecycle
 import csw.command.client.messages.SupervisorContainerCommonMessages.{Restart, Shutdown}
 import csw.command.client.messages.SupervisorLockMessage.{Lock, Unlock}
-import csw.command.client.messages.{RunningMessage => _, _}
+import csw.command.client.messages.{CommandMessage, ContainerIdleMessage, Query, QueryFinal, SupervisorMessage}
 import csw.command.client.models.framework.LocationServiceUsage.RegisterAndTrackServices
 import csw.command.client.models.framework.LockingResponse.ReleasingLockFailed
 import csw.command.client.models.framework.SupervisorLifecycleState
@@ -25,21 +23,19 @@ import csw.framework.internal.supervisor.SupervisorLocationHelper._
 import csw.framework.models.CswContext
 import csw.framework.scaladsl.TopLevelComponent._
 import csw.framework.scaladsl.{RegistrationFactory, TopLevelComponent}
-import csw.logging.api.scaladsl.Logger
 import csw.params.commands.CommandResponse
-import csw.params.commands.CommandResponse.{SubmitResponse, ValidateCommandResponse}
 import csw.params.core.models.Id
 import csw.prefix.models.Prefix
 
+import scala.concurrent.Future
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 object SupervisorBehavior2 {
 
   sealed trait Supervisor2Message extends akka.actor.NoSerializationVerificationNeeded
 
-  private val InitializeTimerKey = "initialize-timer"
-  private val ShutdownTimerKey   = "shutdown-timer"
-  private val RestartTimerKey    = "restart-timer"
+  private val ShutdownTimerKey = "shutdown-timer"
+  private val RestartTimerKey  = "restart-timer"
 
   private final case object InitializeTimeout extends Supervisor2Message
   private final case object ShutdownTimeout   extends Supervisor2Message
@@ -47,118 +43,138 @@ object SupervisorBehavior2 {
   private final case class TlATerminated(tlaBehavior: Behavior[InitializeMessage], retryCount: Int, delayBetween: FiniteDuration)
       extends Supervisor2Message
   private[framework] final case class TLAStart(
-                                                tlaBehavior: Behavior[InitializeMessage],
-                                                retryCount: Int,
-                                                delayBetween: FiniteDuration
+      tlaBehavior: Behavior[InitializeMessage],
+      retryCount: Int,
+      delayBetween: FiniteDuration
   )                                                        extends Supervisor2Message
   private final case class CommandHelperTerminated(id: Id) extends Supervisor2Message
-  final case object PrintCRM                               extends Supervisor2Message
 
-  final case class WrappedInitializeResponse(response: InitializeResponse) extends Supervisor2Message
+  final case class WrappedInitializeResponse(response: InitializeResponse)                   extends Supervisor2Message
+  private final case class WrappedRegisterResponse(response: SupervisorRegisterResponse)     extends Supervisor2Message
+  private final case class WrappedUnregisterResponse(response: SupervisorUnregisterResponse) extends Supervisor2Message
+  private final case class WrappedLockManager2Response(response: LockManager2Response)       extends Supervisor2Message
+  private final case class WrappedShutdownResponse(response: ShutdownResponse)               extends Supervisor2Message
+  private final case class WrappedOnlineResponse(response: OnlineResponse)                   extends Supervisor2Message
+  private final case class WrappedOfflineResponse(response: OfflineResponse)                 extends Supervisor2Message
+  private final case class WrappedDiagnosticResponse(response: DiagnosticModeResponse)       extends Supervisor2Message
+  private final case class WrappedSupervisorMessage(response: SupervisorMessage)             extends Supervisor2Message
 
-  private final case class WrappedLocationManagerResponse(response: SupervisorLocationResponse) extends Supervisor2Message
-
-  private final case class WrappedLockManager2Response(response: LockManager2Response) extends Supervisor2Message
-
-  private final case class WrappedSubmitResponse(response: SubmitResponse) extends Supervisor2Message
-
-  private final case class WrappedValidateResponse(response: ValidateCommandResponse)              extends Supervisor2Message
-  private final case class WrappedShutdownResponse(response: ShutdownResponse)                     extends Supervisor2Message
-  private final case class WrappedOnlineResponse(response: OnlineResponse)                         extends Supervisor2Message
-  private final case class WrappedTopLevelActorCommonMessage(response: TopLevelActorCommonMessage) extends Supervisor2Message
-  private final case class WrappedString(response: String)                                         extends Supervisor2Message
-  private final case class WrappedSupervisorMessage(response: SupervisorMessage)                   extends Supervisor2Message with akka.actor.NoSerializationVerificationNeeded
-
-  def apply(
-             tlaInitBehavior: Behavior[InitializeMessage],
-             registrationFactory: RegistrationFactory,
-             cswCtx: CswContext
-  ): Behavior[SupervisorMessage] = {
+  def apply(tlaInitBehavior: Behavior[InitializeMessage],
+      registrationFactory: RegistrationFactory,
+      cswCtx: CswContext
+  ): Behavior[SupervisorMessage] =
     Behaviors.setup { ctx =>
-      println("Yes")
+      val log = cswCtx.loggerFactory.getLogger
 
-      // Stash here saves commands issued during initialization.  They are played back when entering Running
-      //Behaviors.withStash(capacity = 10) { buffer =>
+      // Creating the actual Supervisor. This actor handles the SupervisorMessage external messages that must
+      // be serialized. All messages are wrapped in a Supervisor2Message
       val svrBehavior: Behavior[Supervisor2Message] = make(tlaInitBehavior, registrationFactory, cswCtx, ctx.self)
-      val newSuper                                  = ctx.spawn(svrBehavior, "newSuper")
+      val newSuper                                  = ctx.spawn(svrBehavior, "superAdapter")
 
       Behaviors.receiveMessage { msg =>
-        println(s"---------------------------------Proxy received: $msg")
+        log.debug(s"${cswCtx.componentInfo.prefix} adapter received message: $msg")
         newSuper ! WrappedSupervisorMessage(msg)
         Behaviors.same
       }
     }
+
+  private def getTLAInstance(fullyQualifiedClassName: String, properties: CswContext): Behavior[InitializeMessage] = {
+    val clazz = Class.forName(fullyQualifiedClassName)
+    val applyMethod = clazz.getDeclaredMethod("apply", classOf[CswContext])
+    applyMethod.invoke(applyMethod, properties).asInstanceOf[Behavior[InitializeMessage]]
   }
 
-  def make(
+  def apply(ctx: ActorContext[SupervisorMessage],
+            timerScheduler: TimerScheduler[SupervisorMessage],
+            maybeContainerRef: Option[ActorRef[ContainerIdleMessage]],
             tlaInitBehavior: Behavior[InitializeMessage],
             registrationFactory: RegistrationFactory,
-            cswCtx: CswContext,
-            svr: ActorRef[SupervisorMessage]
-  ): Behavior[Supervisor2Message] = {
-
-    Behaviors.setup { superCtx: ActorContext[Supervisor2Message] =>
-      val log: Logger = cswCtx.loggerFactory.getLogger
-      log.info("DEBUGGER IS WORKING DAMN IT")
-
-      // Stash here saves commands issued during initialization.  They are played back when entering Running
-      Behaviors.withStash(capacity = 10) { buffer =>
-        println("Sending TLAStart")
-        Thread.sleep(200)
-        superCtx.self ! TLAStart(tlaInitBehavior, 0, 2.seconds)
-        new SupervisorBehavior2(tlaInitBehavior, registrationFactory, cswCtx, svr, superCtx).starting(buffer)
-      }
-    }
+            cswCtx: CswContext): Behavior[SupervisorMessage] = {
+    val tlaInitBehavior = getTLAInstance(cswCtx.componentInfo.behaviorFactoryClassName, cswCtx)
+    apply(tlaInitBehavior, registrationFactory, cswCtx)
   }
 
+  def apply(registrationFactory: RegistrationFactory, cswCtx: CswContext): Behavior[SupervisorMessage] = {
+    val tlaInitBehavior = getTLAInstance(cswCtx.componentInfo.behaviorFactoryClassName, cswCtx)
+    apply(tlaInitBehavior, registrationFactory, cswCtx)
+  }
+
+  private def make(
+      tlaInitBehavior: Behavior[InitializeMessage],
+      registrationFactory: RegistrationFactory,
+      cswCtx: CswContext,
+      svr: ActorRef[SupervisorMessage]
+  ): Behavior[Supervisor2Message] =
+    Behaviors.setup { superCtx: ActorContext[Supervisor2Message] =>
+      // Waiting a bit (200ms) to give time for state subscribers to get in
+      val smallStartupDelay = 200.millis
+      Behaviors.withTimers { startTimer =>
+        startTimer.startSingleTimer(TLAStart(tlaInitBehavior, retryCount = 0, delayBetween = 2.seconds), smallStartupDelay)
+        // Stash here saves commands issued during initialization.  They are played back when entering Running
+        Behaviors.withStash(capacity = 10) { buffer =>
+          new SupervisorBehavior2(tlaInitBehavior, registrationFactory, cswCtx, svr, superCtx).starting(buffer)
+        }
+      }
+    }
+
   private class SupervisorBehavior2(
-                                     tlaInitBehavior: Behavior[InitializeMessage],
-                                     registrationFactory: RegistrationFactory,
-                                     cswCtx: CswContext,
-                                     svr: ActorRef[SupervisorMessage],
-                                     superCtx: ActorContext[Supervisor2Message]
+      tlaInitBehavior: Behavior[InitializeMessage],
+      registrationFactory: RegistrationFactory,
+      cswCtx: CswContext,
+      svr: ActorRef[SupervisorMessage],
+      superCtx: ActorContext[Supervisor2Message]
   ) {
     val initResponseMapper: ActorRef[TopLevelComponent.InitializeResponse] =
       superCtx.messageAdapter(rsp => WrappedInitializeResponse(rsp))
     val lockResponseMapper: ActorRef[LockManager2Response] =
       superCtx.messageAdapter(rsp => WrappedLockManager2Response(rsp))
-    val locationHelperResponseMapper: ActorRef[SupervisorLocationResponse] =
-      superCtx.messageAdapter(rsp => WrappedLocationManagerResponse(rsp))
-    val stringResponseMapper: ActorRef[String] = superCtx.messageAdapter(rsp => WrappedString(rsp))
+    val locationRegisterResponseMapper: ActorRef[SupervisorRegisterResponse] =
+      superCtx.messageAdapter(rsp => WrappedRegisterResponse(rsp))
+    val locationUnregisterResponseMapper: ActorRef[SupervisorUnregisterResponse] =
+      superCtx.messageAdapter(rsp => WrappedUnregisterResponse(rsp))
     val shutdownResponseMapper: ActorRef[ShutdownResponse] =
       superCtx.messageAdapter(rsp => WrappedShutdownResponse(rsp))
     val onlineResponseMapper: ActorRef[OnlineResponse] =
       superCtx.messageAdapter(rsp => WrappedOnlineResponse(rsp))
-    val topLevelActorCommonMessageMapper: ActorRef[TopLevelActorCommonMessage] =
-      superCtx.messageAdapter(rsp => WrappedTopLevelActorCommonMessage(rsp))
-
-    val supervisorMessageMapper: ActorRef[SupervisorMessage] =
-      superCtx.messageAdapter(rsp => WrappedSupervisorMessage(rsp))
+    val offlineResponseMapper: ActorRef[OfflineResponse] =
+      superCtx.messageAdapter(rsp => WrappedOfflineResponse(rsp))
+    val diagnosticModeResponseMapper: ActorRef[DiagnosticModeResponse] =
+      superCtx.messageAdapter(rsp => WrappedDiagnosticResponse(rsp))
 
     private val stateHandler =
       superCtx.spawn(LifecycleHandler(cswCtx.loggerFactory, svr), "SupervisorStateHandler")
     private val crm = superCtx.spawn(MiniCRM.make(), "CRM")
-    private val log = cswCtx.loggerFactory.getLogger
 
-    val MAX_RETRIES = 3
+    // Provided by cswContext
+    private val currentStatePublisher = cswCtx.currentStatePublisher
 
-    // This state is entered when there is a problem that is unrecoverable. It is a holding place for an
-    // operator to take action.  Actions are Restart, and Shutdown.
-    // We should only enter this state when we are unregistered
+    // This is needed to shutdown the HTTP server if it is used. TODO: Remove this?
+    private var embeddedServer: Option[ServerBinding] = None
+
+    private val prefix = cswCtx.componentInfo.prefix
+    private val log    = cswCtx.loggerFactory.getLogger(superCtx)
+
+    val MAX_RETRIES = 3 // TODO: Get this from config?
+
+    /**
+     * This state is entered when there is a problem that is unrecoverable. It is a holding place for an
+     * operator to take action.  Actions are Restart, and Shutdown.
+     * We should only enter this state when we are unregistered.
+     */
     def idle(): Behavior[Supervisor2Message] = {
-      println(s"Entering idle")
+      log.debug(s"Entering Supervisor idle state")
       stateHandler ! UpdateState(SupervisorLifecycleState.Idle)
 
       Behaviors.withStash(capacity = 10) { buffer =>
-        Behaviors.receiveMessage[Supervisor2Message] {
+        Behaviors.receiveMessagePartial {
           case wrapped: WrappedSupervisorMessage =>
             wrapped.response match {
               case Restart =>
-                println("Got Restart from Idle")
-                superCtx.self ! TLAStart(tlaInitBehavior, 0, 2.seconds)
+                log.info(s"Component: $prefix received a Restart while in the Idle state.")
+                superCtx.self ! TLAStart(tlaInitBehavior, retryCount = 0, delayBetween = 2.seconds)
                 starting(buffer)
               case Shutdown =>
-                println("Received Shutdown from Idle")
+                log.info(s"Component: $prefix received a Shutdown while in the Idle state causing exit.")
                 superCtx.system.terminate()
                 Behaviors.same
             }
@@ -166,13 +182,12 @@ object SupervisorBehavior2 {
       }
     }
 
-    def starting(buffer: StashBuffer[Supervisor2Message]): Behavior[Supervisor2Message] = {
-      println(s"Entering starting with: $buffer")
-      Behaviors.receiveMessage[Supervisor2Message] {
+    def starting(buffer: StashBuffer[Supervisor2Message]): Behavior[Supervisor2Message] =
+      Behaviors.receiveMessagePartial {
         case TLAStart(tlaInitBehavior, retryCount, delayBetween) =>
-          println(s"Got the TLAStart with $retryCount")
+          log.debug(s"Received TLAStart in starting with retryCount=$retryCount")
           val tlaInit = superCtx.spawn(tlaInitBehavior, "tlaInit")
-          println(s"tlaInit Actor: $tlaInit")
+          // This watches init actor and sends a TLATerminated to initializing behavior if crashes
           superCtx.watchWith(tlaInit, TlATerminated(tlaInitBehavior, retryCount, delayBetween))
           initializing(tlaInit, buffer)
         case wrapped: WrappedSupervisorMessage =>
@@ -180,51 +195,58 @@ object SupervisorBehavior2 {
             case LifecycleStateSubscription2(subscriber) =>
               stateHandler ! SubscribeState(subscriber)
               Behaviors.same
-            case other =>
-              println(s"Buffering in starting: $other")
+            case _ =>
+              // stash any other SupervisorMessages for later during Running
               buffer.stash(wrapped)
               Behaviors.same
           }
       }
-    }
 
     def initializing(
-                      tlaInit: ActorRef[InitializeMessage],
-                      buffer: StashBuffer[Supervisor2Message]
+        tlaInit: ActorRef[InitializeMessage],
+        buffer: StashBuffer[Supervisor2Message]
     ): Behavior[Supervisor2Message] = {
-      log.debug("Initialzing")
-      println("Initializing")
-      val componentInfo = cswCtx.componentInfo
+      val InitializeTimerKey = "initialize-timer"
+
+      stateHandler ! UpdateState(SupervisorLifecycleState.Initializing /*(prefix)*/ )
 
       Behaviors.withTimers { timers =>
-        println("Sending iniitalize to TLA")
-        tlaInit ! Initialize(initResponseMapper)
+        log.info(s"Supervisor initializing TLA: $prefix")
+
+        tlaInit ! InitializeMessage.Initialize(initResponseMapper)
         timers.startSingleTimer(InitializeTimerKey, InitializeTimeout, cswCtx.componentInfo.initializeTimeout)
 
-        Behaviors.receiveMessage {
+        Behaviors.receiveMessagePartial {
           case wrapped: WrappedInitializeResponse =>
-            log.info("Received initialize reponse from component within timeout, cancelling InitializeTimer")
+            log.info("Received initialize response from TLA within timeout, cancelling InitializeTimer")
             timers.cancel(InitializeTimerKey)
 
             wrapped.response match {
               case InitializeSuccess(runningBehavior) =>
-                println(s"Received InitializeSuccess from TLA: $tlaInit")
+                log.debug(s"Component: $prefix received InitializeSuccess from TLA: $tlaInit")
                 superCtx.unwatch(tlaInit)
-                // Stop the init actor
+                // Stop the init actor and start the provided running behavior
                 superCtx.stop(tlaInit)
                 val tlaRunning = superCtx.spawn(runningBehavior, "running")
-                println(s"INit actor: $tlaInit")
-                println(s"Running actor: $tlaRunning")
+                // Success: jump to registering
+                registering(tlaRunning, registrationFactory, cswCtx, buffer)
+              case InitializeSuccess2(runningBehavior) =>
+                log.debug(s"Component: $prefix received InitializeSuccess from TLA: $tlaInit")
+                //superCtx.unwatch(tlaInit)
+                // Stop the init actor and start the provided running behavior
+                //superCtx.stop(tlaInit)
+                //val tlaRunning:Behavior[RunningMessage] = runningBehavior.narrow
+                val tlaRunning = superCtx.spawn(runningBehavior, "running")
+                // Success: jump to registering
                 registering(tlaRunning, registrationFactory, cswCtx, buffer)
               case InitializeFailureStop =>
-                println("Initialize failure Stop")
+                log.info(s"Supervisor received InitializeFailureStop from TLA: $prefix. Going Idle.")
                 // Unwatch here so restart isn't done
                 superCtx.unwatch(tlaInit)
                 superCtx.stop(tlaInit)
-                log.debug(s"Component: ${componentInfo.prefix} initialize failed with stop. Going idle.")
                 idle()
               case InitializeFailureRestart =>
-                println(s"Got falure restart")
+                log.error(s"Supervisor received InitializeFailureRestart from TLA: $prefix. Restarting.")
                 // Causes TLATerminated
                 superCtx.stop(tlaInit)
                 Behaviors.same
@@ -237,32 +259,30 @@ object SupervisorBehavior2 {
               case GetSupervisorLifecycleState(replyTo) =>
                 stateHandler ! SendState(replyTo)
                 Behaviors.same
-              case save =>
-                println(s"Buffering in init: ${save}")
+              case _ =>
+                // Save any other messages for un-stashing in running
                 buffer.stash(wrapped)
                 Behaviors.same
             }
           case InitializeTimeout =>
-            log.info(s"Component: ${componentInfo.prefix} timed out during initialization.")
-            // Gemerate alarm?
+            log.info(s"Component: $prefix timed out during initialization.")
+            // Generate alarm?
             idle()
 
           case TlATerminated(tlaBehavior, retryCount, delayBetween) =>
             // Don't need to do this since new startTimer will replace, but to be complete...
             timers.cancel(InitializeTimerKey)
-            println("TLA Terminated")
             if (retryCount < MAX_RETRIES) {
-              println(s"Retry: $retryCount, starting timer for $delayBetween")
+              log.error(s"TLA terminated. Restart: $retryCount, but first wait: $delayBetween")
               timers.startSingleTimer(RestartTimerKey, TLAStart(tlaBehavior, retryCount + 1, delayBetween), delayBetween)
               starting(buffer)
             }
             else {
               log.error(
-                s"Component: ${componentInfo.prefix} failed to initialize.  Tried $retryCount times over ${retryCount * delayBetween}."
+                s"Component: $prefix failed to initialize. Tried $retryCount times over ${retryCount * delayBetween}."
               )
               idle()
             }
-
         }
       }
     }
@@ -274,47 +294,48 @@ object SupervisorBehavior2 {
         buffer: StashBuffer[Supervisor2Message]
     ): Behavior[Supervisor2Message] = {
       val componentInfo = cswCtx.componentInfo
-      val prefix        = componentInfo.prefix
 
-      stateHandler ! UpdateState(SupervisorLifecycleState.Registering /*(prefix)*/)
+      stateHandler ! UpdateState(SupervisorLifecycleState.Registering /*(prefix)*/ )
 
       val locationHelper =
         superCtx.spawn(SupervisorLocationHelper(registrationFactory, cswCtx), "LocationHelper")
 
+      // If there are any connections in the componentInfo, track them
       trackConnections(cswCtx)
 
-      locationHelper ! Register(componentInfo, svr, locationHelperResponseMapper)
+      locationHelper ! Register(componentInfo, svr, locationRegisterResponseMapper)
 
       def waiting(expected: Int, count: Int): Behavior[Supervisor2Message] =
         Behaviors.receiveMessage {
-          case wrapped: WrappedLocationManagerResponse =>
+          case wrapped: WrappedRegisterResponse =>
             wrapped.response match {
               case AkkaRegisterSuccess(componentInfo) =>
                 log.info(s"Component: ${componentInfo.prefix} registered Akka successfully.")
                 check(expected, count)
-              case HttpRegisterSuccess(componentInfo, port) =>
+              case HttpRegisterSuccess(componentInfo, binding) =>
+                val port = binding.localAddress.getPort
+                embeddedServer = Some(binding)
                 log.info(s"Component: ${componentInfo.prefix} registered HTTP successfully on port: $port.")
                 check(expected, count)
               case RegistrationFailed(componentInfo, connectionType) =>
-                log.error(s"Registration of connection type: $connectionType failed for ${componentInfo.prefix}")
+                log.error(s"Component: ${componentInfo.prefix} registration of connection type: $connectionType failed.")
                 idle()
-              case xother =>
-                println(s"Got an other message: $xother in waiting")
+              case RegistrationNotRequired(componentInfo, connectionType) =>
+                log.debug(s"Component: ${componentInfo.prefix} does not register with: $connectionType")
                 Behaviors.same
             }
           case other =>
-            // All other messages are stashed until running
-            println("Buffering in waiting")
+            // All other Supervisor2Messages are stashed until running state while registering
             buffer.stash(other)
             Behaviors.same
         }
 
-      // Checks to see if all the expected succsssful location responses have been returned
+      // Checks to see if all the expected successful location responses have been returned
       def check(expected: Int, count: Int): Behavior[Supervisor2Message] = {
         if (expected == count + 1) {
           // If all have registered, stop the helper and go to running, else wait for all to complete
           superCtx.stop(locationHelper)
-          buffer.unstashAll(running(tla, cswCtx))
+          buffer.unstashAll(running(tla, cswCtx, online = true))
         }
         else {
           waiting(expected, count + 1)
@@ -323,11 +344,13 @@ object SupervisorBehavior2 {
 
       def trackConnections(cswContext: CswContext): Unit = {
         val componentInfo = cswContext.componentInfo
-        if (componentInfo.connections.isEmpty) println("No Connections to Track!")
+        if (componentInfo.connections.isEmpty)
+          log.debug(s"No Connections to track for component: ${cswContext.componentInfo.prefix}")
+
         if (componentInfo.locationServiceUsage == RegisterAndTrackServices) {
           componentInfo.connections.foreach(connection => {
             cswContext.locationService
-              .subscribe(connection, trackingEvent => supervisorMessageMapper ! TrackingEventReceived(trackingEvent))
+              .subscribe(connection, trackingEvent => svr ! TrackingEventReceived(trackingEvent))
           })
         }
       }
@@ -335,29 +358,30 @@ object SupervisorBehavior2 {
       waiting(expected = cswCtx.componentInfo.registerAs.size, count = 0)
     }
 
-    def running(tla: ActorRef[RunningMessage], cswCtx: CswContext): Behavior[Supervisor2Message] = {
-      println("************Got to RUNNING")
-      stateHandler ! UpdateState(SupervisorLifecycleState.Running)
+    def running(tla: ActorRef[RunningMessage], cswCtx: CswContext, online: Boolean): Behavior[Supervisor2Message] = {
+      if (online)
+        stateHandler ! UpdateState(SupervisorLifecycleState.Running)
+      else
+        stateHandler ! UpdateState(SupervisorLifecycleState.RunningOffline)
 
-      Behaviors.receive { (context, msg) =>
+      Behaviors.receiveMessagePartial { msg =>
         log.debug(s"Supervisor in lifecycle state :[${SupervisorLifecycleState.Running}] received message :[$msg]")
 
         msg match {
           case wrapped: WrappedSupervisorMessage =>
             wrapped.response match {
               case v @ Validate(_, replyTo) =>
-                val id = Id()
-                //cman ! SendValidate(id, cmdMsg.command, replyTo)
-                val helper = superCtx.spawnAnonymous(ValidateHelper(id, replyTo))
-                tla ! Validate2(id, v.command, helper)
+                val id     = Id()
+                val helper = superCtx.spawnAnonymous(ValidateHelper(id, cswCtx.loggerFactory, replyTo))
+                tla ! RunningMessage.Validate(id, v.command, helper)
                 Behaviors.same
               case o @ Oneway(_, replyTo) =>
                 val id = Id()
-                superCtx.spawnAnonymous(OnewayHelper(id, tla, o.command, replyTo))
+                superCtx.spawnAnonymous(OnewayHelper(id, tla, o.command, cswCtx.loggerFactory, replyTo))
                 Behaviors.same
               case s @ Submit(_, replyTo) =>
                 val id = Id()
-                val cm = superCtx.spawnAnonymous(CommandHelper(id, tla, s.command, crm, replyTo))
+                val cm = superCtx.spawnAnonymous(CommandHelper(id, tla, s.command, crm, cswCtx.loggerFactory, replyTo))
                 superCtx.watchWith(cm, CommandHelperTerminated(id))
                 Behaviors.same
               case Query(runId, replyTo) =>
@@ -367,69 +391,68 @@ object SupervisorBehavior2 {
                 crm ! MiniCRMMessage.QueryFinal(runId, replyTo)
                 Behaviors.same
               case LifecycleStateSubscription2(subscriber) =>
-                println(s"Procssing subscription message: $subscriber")
                 stateHandler ! SubscribeState(subscriber)
                 Behaviors.same
               case GetSupervisorLifecycleState(replyTo) =>
-                println("Got GetState in running")
                 stateHandler ! SendState(replyTo)
                 Behaviors.same
               case Lock(lockPrefix, replyTo, leaseDuration) =>
-                println("Got Lock in Running")
                 val lockManager = superCtx.spawn(LockManager2(cswCtx.loggerFactory), "lockManager")
                 lockManager ! LockComponent(lockPrefix, replyTo, lockResponseMapper, leaseDuration)
-                println("Jumping to locking state")
-                locked(tla, lockManager, cswCtx, lockPrefix)
+                locked(tla, lockManager, cswCtx, lockPrefix, isLocked = false)
               case Unlock(_, replyTo) =>
                 replyTo ! ReleasingLockFailed("The component is not currently locked.")
                 Behaviors.same
               case Lifecycle(message) =>
-                println(s"Got lifecycle: $message")
-                //log.info("Invoking lifecycle handler's onGoOnline hook")
+                log.info(s"Component: $prefix received lifecycle: $message")
                 message match {
                   case GoOffline =>
-                    tla ! GoOffline2(onlineResponseMapper)
+                    tla ! RunningMessage.GoOffline(offlineResponseMapper)
                     Behaviors.same
                   case GoOnline =>
-                    tla ! GoOnline2(onlineResponseMapper)
+                    tla ! RunningMessage.GoOnline(onlineResponseMapper)
                     Behaviors.same
                 }
                 Behaviors.same
+              case DiagnosticMode(startTime, hint) =>
+                tla ! RunningMessage.DiagnosticMode(startTime, hint, diagnosticModeResponseMapper)
+                Behaviors.same
+              case OperationsMode =>
+                tla ! RunningMessage.OperationsMode(diagnosticModeResponseMapper)
+                Behaviors.same
+               case ComponentStateSubscription(subscriberMessage) =>
+                currentStatePublisher.publisherActor.unsafeUpcast ! subscriberMessage
+                Behaviors.same
               case TrackingEventReceived(event) =>
-                tla ! TrackingEventReceived2(event)
+                tla ! RunningMessage.TrackingEventReceived(event)
                 Behaviors.same
               case Restart =>
-                println("Got Restart")
                 unRegistering(tla, registrationFactory, cswCtx, restarting)
               case Shutdown =>
-                println("Received SHutdown")
+                log.info("Supervisor")
                 unRegistering(tla, registrationFactory, cswCtx, shuttingDown)
             }
           case wrapped: WrappedOnlineResponse =>
             wrapped.response match {
-              case OfflineSuccess =>
-                stateHandler ! UpdateState(SupervisorLifecycleState.RunningOffline)
-                Behaviors.same
-              case OfflineFailure =>
-                println("Offline failure")
-                Behaviors.same
               case OnlineSuccess =>
-                stateHandler ! UpdateState(SupervisorLifecycleState.Running)
-                //log.debug(s"Component TLA is Online")
-                Behaviors.same
+                log.debug(s"Component TLA transitioning to Online")
+                running(tla, cswCtx, online = true)
               case OnlineFailure =>
                 println("Online Failure")
                 Behaviors.same
             }
-          case PrintCRM =>
-            println("Got PrintCRM")
-            crm ! Print(stringResponseMapper)
-            Behaviors.same
-          case WrappedString(mess) =>
-            println(s"CRM: $mess")
-            Behaviors.same
+          case wrapped: WrappedOfflineResponse =>
+            wrapped.response match {
+              case OfflineSuccess =>
+                log.debug("Transitioning to running offline")
+                running(tla, cswCtx, online = false)
+              case OfflineFailure =>
+                println("Offline failure")
+                Behaviors.same
+            }
           case CommandHelperTerminated(id) =>
-            println(s"CommandHelper Terminated: $id\n\n")
+            log.debug(s"Supervisor notes CommandHelper for: $id terminated")
+            // Retaining for now in case need to keep/remove command runIds
             Behaviors.same
         }
       }
@@ -441,45 +464,60 @@ object SupervisorBehavior2 {
         cswCtx: CswContext,
         next: (ActorRef[RunningMessage], CswContext) => Behavior[Supervisor2Message]
     ): Behavior[Supervisor2Message] = {
-      val log = cswCtx.loggerFactory.getLogger
-      log.debug(s"Un-registering supervisor from location service")
-      println("Un-registering supervisor from location service")
+      val componentInfo = cswCtx.componentInfo
 
-      stateHandler ! UpdateState(SupervisorLifecycleState.Unregistering /*(cswCtx.componentInfo.prefix)*/)
+      val log = cswCtx.loggerFactory.getLogger
+      log.debug(s"Unregistering component: ${componentInfo.prefix}")
+
+      stateHandler ! UpdateState(SupervisorLifecycleState.Unregistering /*(cswCtx.componentInfo.prefix)*/ )
 
       val locationHelper =
         superCtx.spawn(SupervisorLocationHelper(registrationFactory, cswCtx), "LocationHelper")
 
-      locationHelper ! AkkaUnregister(cswCtx.componentInfo, locationHelperResponseMapper)
+      locationHelper ! Unregister(componentInfo, locationUnregisterResponseMapper)
 
-      println("Unregistering")
-      Behaviors.receiveMessage {
-        case wrapped: WrappedLocationManagerResponse =>
-          wrapped.response match {
-            case AkkaUnregisterSuccess(compId) =>
-              println(s"Akka component unregistered successfully: $compId")
-              locationHelper ! HttpUnregister(cswCtx.componentInfo, locationHelperResponseMapper)
-              Behaviors.same
-            case HttpUnregisterSuccess(compId) =>
-              println(s"Http component unregistered successfully for: $compId")
-              superCtx.stop(locationHelper)
-              next(tla, cswCtx)
-            case other =>
-              println(s"Got unregister other message: $other")
-              Behaviors.same
-          }
+      def waiting(expected: Int, count: Int): Behavior[Supervisor2Message] =
+        Behaviors.receiveMessagePartial {
+          case wrapped: WrappedUnregisterResponse =>
+            wrapped.response match {
+              case AkkaUnregisterSuccess(componentInfo) =>
+                log.info(s"Component: ${componentInfo.prefix} unregistered Akka successfully.")
+                check(expected, count)
+              case HttpUnregisterSuccess(componentInfo) =>
+                implicit val ec = superCtx.system.executionContext
+                log.info(s"Component: ${componentInfo.prefix} unregistered HTTP successfully.")
+                // Shutdown the embedded server
+                val embeddedServerTerminationResult =
+                  embeddedServer.map(_.terminate(20.seconds).map(_ => Done)).getOrElse(Future.successful(Done))
+                log.debug(s"Embedded server shutdown result: $embeddedServerTerminationResult")
+                check(expected, count)
+              case UnregisterFailed(componentInfo, connectionType) =>
+                log.error(s"Component: ${componentInfo.prefix} unregister of connection type: $connectionType failed.")
+                check(expected, count)
+            }
+        }
+
+      // Checks to see if all the expected successful location responses have been returned
+      def check(expected: Int, count: Int): Behavior[Supervisor2Message] = {
+        if (expected == count + 1) {
+          // If all have registered, stop the helper and go to running, else wait for all to complete
+          superCtx.stop(locationHelper)
+          next(tla, cswCtx)
+        }
+        else {
+          waiting(expected, count + 1)
+        }
       }
+
+      waiting(expected = cswCtx.componentInfo.registerAs.size, count = 0)
     }
 
     def restarting(tla: ActorRef[RunningMessage], cswCtx: CswContext): Behavior[Supervisor2Message] = {
 
-      val log = cswCtx.loggerFactory.getLogger
       log.debug(s"Restarting request started")
-
       stateHandler ! UpdateState(SupervisorLifecycleState.Restart)
-      println(s"Sending shutdown to TLA: $tla")
 
-      tla ! Shutdown2(shutdownResponseMapper)
+      tla ! RunningMessage.Shutdown(shutdownResponseMapper)
 
       Behaviors.withStash(capacity = 10) { stash =>
         Behaviors.withTimers { timers =>
@@ -491,14 +529,11 @@ object SupervisorBehavior2 {
               case wrapped: WrappedShutdownResponse =>
                 wrapped.response match {
                   case ShutdownSuccessful =>
-                    println("Shutdown during restart successful")
-                    //superCtx.watchWith(tla, TLAStart(tlaInitBehavior, 0, 2.seconds))
-                    println(s"Stopping: $tla")
+                    log.info(s"Supervisor stopping TLA: $tla for requested restart")
                     context.stop(tla) // stop a component actor for a graceful shutdown before shutting down the actor system
-                    println("Jumpging to starting")
                     starting(stash)
                   case ShutdownFailed =>
-                    println("Shutdown failed damit")
+                    log.error(s"Request to restart $prefix failed due to TLA returning ShutdownFailed.")
                     idle()
                 }
               case ShutdownTimeout =>
@@ -518,18 +553,17 @@ object SupervisorBehavior2 {
         tla: ActorRef[RunningMessage],
         cswCtx: CswContext
     ): Behavior[Supervisor2Message] = {
+
       stateHandler ! UpdateState(SupervisorLifecycleState.Shutdown)
 
-      val log = cswCtx.loggerFactory.getLogger
       log.debug(s"Shutting my tla ass down")
-      println(s"Got to the shutting down function: $tla")
 
-      tla ! Shutdown2(shutdownResponseMapper)
+      tla ! RunningMessage.Shutdown(shutdownResponseMapper)
 
       Behaviors.withTimers { timers =>
         timers.startSingleTimer(ShutdownTimerKey, ShutdownTimeout, cswCtx.componentInfo.initializeTimeout)
 
-        Behaviors.receiveMessage {
+        Behaviors.receiveMessagePartial {
           case wrapped: WrappedShutdownResponse =>
             wrapped.response match {
               case ShutdownSuccessful =>
@@ -539,7 +573,7 @@ object SupervisorBehavior2 {
                 superCtx.system.terminate()
                 Behaviors.same
               case ShutdownFailed =>
-                println("Shutdown failed damit")
+                println("Shutdown failed!")
                 Behaviors.same
             }
           case ShutdownTimeout =>
@@ -554,64 +588,58 @@ object SupervisorBehavior2 {
         tla: ActorRef[RunningMessage],
         lockManager: ActorRef[LockManager2Message],
         cswCtx: CswContext,
-        lockPrefix: Prefix
+        lockPrefix: Prefix,
+        isLocked: Boolean
     ): Behavior[Supervisor2Message] = {
       val log = cswCtx.loggerFactory.getLogger
-      log.debug(s"Componennt is locked")
-      println(s"Into locked with mapper: $lockResponseMapper")
-      stateHandler ! UpdateState(SupervisorLifecycleState.Lock)
 
-      Behaviors.receiveMessage {
+      Behaviors.receiveMessagePartial {
         case wrapped: WrappedSupervisorMessage =>
           wrapped.response match {
             case Unlock(unlockPrefix, replyTo) =>
               lockManager ! UnlockComponent(unlockPrefix, replyTo, lockResponseMapper)
+              Behaviors.same
+            case Lock(lockPrefix, replyTo, leaseDuration) =>
+              // Reup the lock if it is the correct prefix
+              lockManager ! LockComponent(lockPrefix, replyTo, lockResponseMapper, leaseDuration)
               Behaviors.same
             case cmdMsg: CommandMessage =>
               if (cmdMsg.command.source == lockPrefix || cmdMsg.command.source == LockManager2.AdminPrefix) {
                 cmdMsg match {
                   case Validate(_, replyTo) =>
                     val id     = Id()
-                    val helper = superCtx.spawnAnonymous(ValidateHelper(id, replyTo))
-                    tla ! Validate2(id, cmdMsg.command, helper)
+                    val helper = superCtx.spawnAnonymous(ValidateHelper(id, cswCtx.loggerFactory, replyTo))
+                    tla ! RunningMessage.Validate(id, cmdMsg.command, helper)
                     Behaviors.same
                   case Oneway(_, replyTo) =>
                     val id = Id()
-                    superCtx.spawnAnonymous(OnewayHelper(id, tla, cmdMsg.command, replyTo))
+                    superCtx.spawnAnonymous(OnewayHelper(id, tla, cmdMsg.command, cswCtx.loggerFactory, replyTo))
                     Behaviors.same
                   case Submit(_, replyTo) =>
                     val id = Id()
-                    superCtx.spawnAnonymous(CommandHelper(id, tla, cmdMsg.command, crm, replyTo))
+                    superCtx.spawnAnonymous(CommandHelper(id, tla, cmdMsg.command, crm, cswCtx.loggerFactory, replyTo))
                     Behaviors.same
                 }
               }
               else {
-                println("Command Refused")
+                log.info(s"Command ${cmdMsg.command.commandName} for $prefix rejected due to lock")
                 cmdMsg.replyTo ! CommandResponse.Locked(Id())
               }
               Behaviors.same
             case GetSupervisorLifecycleState(replyTo) =>
-              println("Got GetState in locked")
               stateHandler ! SendState(replyTo)
               Behaviors.same
           }
         case wrapped: WrappedLockManager2Response =>
           wrapped.response match {
-            case Locked =>
-              println("****************Got Locked")
-              Behaviors.same
-            case AcquiringLockFailed2(_, _) =>
-              Behaviors.same
-            case LockReleased2 =>
-              println(s"Lock Released")
-              running(tla, cswCtx)
-            case other =>
-              println(s"Got other: $other")
-              Behaviors.same
+            case LockManager2.Locked(lockPrefix) =>
+              log.info(s"Component: $prefix is locked by $lockPrefix")
+              stateHandler ! UpdateState(SupervisorLifecycleState.Lock)
+              locked(tla, lockManager, cswCtx, lockPrefix, isLocked = true)
+            case LockManager2.Unlocked =>
+              log.info(s"Component: $prefix is no longer locked")
+              running(tla, cswCtx, online = true)
           }
-        case other2 =>
-          println(s"Other other: $other2")
-          Behaviors.same
       }
 
     }

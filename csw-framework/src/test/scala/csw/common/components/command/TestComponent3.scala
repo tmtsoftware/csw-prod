@@ -2,43 +2,44 @@ package csw.common.components.command
 
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.actor.typed.{Behavior, PostStop}
-import csw.framework.models.CswContext
-import csw.framework.scaladsl.TopLevelComponent._
-import csw.params.commands.CommandResponse.{Accepted, Completed, Invalid, Started}
 import csw.common.components.command.CommandComponentState._
 import csw.framework.exceptions.FailureRestart
+import csw.framework.models.CswContext
+import csw.framework.scaladsl.TopLevelComponent._
 import csw.params.commands.CommandIssue
+import csw.params.commands.CommandResponse.{Accepted, Completed, Invalid, Started}
 import csw.time.core.models.UTCTime
 
-object TestComponent {
+object TestComponent3 {
 
   case class MyFailure(msg: String) extends FailureRestart(s"Damn another Failure: + $msg")
 
-  private case class MyInitState(val1: String, val2: String)
+  case class MyInitState(val1: String, val2: String)
 
-  def apply(cswCtx: CswContext): Behavior[InitializeMessage] = {
-    import InitializeMessage._
-
+  def apply(cswCtx: CswContext): Behavior[TopLevelComponentMessage] = {
     val log = cswCtx.loggerFactory.getLogger
-
-    Behaviors
-      .receiveMessage[InitializeMessage] {
-        case Initialize(ref) =>
-          log.info(s"Initializing TestComponent for: $ref")
-
-          val runBehavior = running(cswCtx, MyInitState("kim", "gillies"))
-          ref ! InitializeSuccess(runBehavior)
-          log.info(s"TestComponent TLA sent InitializeSuccess to: $ref")
-          Behaviors.same
-      }
-      .receiveSignal {
-        case (_, signal) =>
-          log.debug(s"TestComponent TLA Initialize actor got signal: $signal")
-          Behaviors.same
-      }
+    initialize(cswCtx)
   }
 
-  private def running(cswCtx: CswContext, myState: MyInitState): Behavior[RunningMessage] = {
+
+
+
+  private def initialize(cswCtx: CswContext):Behavior[TopLevelComponentMessage] = {
+    val log = cswCtx.loggerFactory.getLogger
+    Behaviors
+      .receiveMessagePartial[TopLevelComponentMessage] {
+        case InitializeMessage.Initialize(ref) =>
+          log.info(s"Initializing TestComponent3 for: $ref")
+
+          val runBehavior = running(cswCtx, MyInitState("kim", "gillies"))
+          ref ! InitializeSuccess2(runBehavior)
+          log.info(s"TestComponent3 TLA sent InitializeSuccess to: $ref")
+          Behaviors.same
+      }
+
+  }
+
+  private def running(cswCtx: CswContext, myState: MyInitState): Behavior[TopLevelComponentMessage] = {
     import RunningMessage._
 
     val log = cswCtx.loggerFactory.getLogger
@@ -49,7 +50,7 @@ object TestComponent {
       log.debug(s"Running ctx: ${ctx.system.name}")
       Behaviors.receiveMessage[RunningMessage] {
         case Validate(runId, cmd, svr) =>
-          log.info(s"TestComponent TLA received Validate with runId:name: $runId:$cmd")
+          log.info(s"TestComponent3 TLA received Validate with runId:name: $runId:$cmd")
           cmd.commandName match {
             case `invalidCmd` =>
               svr ! Invalid(runId, CommandIssue.OtherIssue("Invalid"))
@@ -79,7 +80,7 @@ object TestComponent {
           }
           Behaviors.same
         case Oneway(runId, cmd) =>
-          log.info(s"TestComponent TLA received Oneway: id:name: $runId:$cmd")
+          log.info(s"TestComponent3 TLA received Oneway: id:name: $runId:$cmd")
           // No response needed
           Behaviors.same
         case Shutdown(svr) =>
@@ -106,6 +107,7 @@ object TestComponent {
           log.debug(s"TestComponent TLA Running PostStop signal received")
           Behaviors.same
       }
+      Behaviors.same
     }
   }
 
