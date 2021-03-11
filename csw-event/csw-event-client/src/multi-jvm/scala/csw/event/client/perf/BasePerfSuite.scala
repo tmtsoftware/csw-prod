@@ -5,6 +5,7 @@ import java.util.concurrent.TimeUnit.SECONDS
 import java.util.concurrent.{ExecutorService, Executors}
 
 import akka.Done
+import akka.actor.typed.{ActorSystem, SpawnProtocol}
 import akka.actor.typed.scaladsl.adapter._
 import akka.remote.testkit.{MultiNodeConfig, MultiNodeSpec, MultiNodeSpecCallbacks}
 import akka.testkit.ImplicitSender
@@ -32,8 +33,9 @@ class BasePerfSuite(config: MultiNodeConfig)
     with SystemMonitoringSupport
     with BeforeAndAfterAll {
 
+  private val typedSystem = ActorSystem(SpawnProtocol(),"typed-actor-system")
   val testConfigs = new TestConfigs(system.settings.config)
-  val testWiring  = new TestWiring(system.toTyped)
+  val testWiring  = new TestWiring(typedSystem)
 
   import testWiring._
 

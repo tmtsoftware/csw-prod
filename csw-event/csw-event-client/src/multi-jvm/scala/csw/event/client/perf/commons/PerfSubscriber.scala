@@ -33,12 +33,12 @@ class PerfSubscriber(
   import testConfigs._
   import testWiring._
 
-  implicit val system: typed.ActorSystem[_] = actorSystem
+  implicit val system= actorSystem
 
   private val subscriber: EventSubscriber =
     if (testConfigs.shareConnection) sharedSubscriber else testWiring.subscriber
 
-  private lazy val ocsGatewayClient = new GatewayClient("localhost", 9090)
+  private lazy val ocsGatewayClient = new GatewayClient("172.31.57.227", 8090, subId)
 
   val histogram: Histogram   = new Histogram(SECONDS.toNanos(10), 3)
   private val resultReporter = new ResultReporter(prefix.toString, actorSystem)
@@ -76,7 +76,7 @@ class PerfSubscriber(
   }
 
   def startSubscription(): Future[Done] =
-    subscription
+    subscribeToGateways
       .prefixAndTail(eventKeys.size)
       .flatMapConcat {
         case (events, remainingSource) =>

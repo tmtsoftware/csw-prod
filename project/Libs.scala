@@ -126,3 +126,11 @@ object MSocket {
   val `msocket-security` = "com.github.tmtsoftware.msocket" %% "msocket-security" % Version
   val `msocket-http`     = "com.github.tmtsoftware.msocket" %% "msocket-http"     % Version
 }
+
+object Esw {
+  val Org     = "com.github.tmtsoftware.esw"
+  val Version = "0.1.0-SNAPSHOT"
+
+  val `esw-gateway-api` = Org %% "esw-gateway-api" % Version
+  val `esw-testkit` = Org %% "esw-testkit" % Version
+}

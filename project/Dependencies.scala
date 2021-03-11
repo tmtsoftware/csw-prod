@@ -267,7 +267,9 @@ object Dependencies {
       Libs.`mockito-scala`            % Test,
       Libs.`embedded-redis`           % Test,
       Libs.`embedded-kafka`           % Test,
-      Libs.`testng-6-7`               % Test
+      Libs.`testng-6-7`               % Test,
+      Esw.`esw-gateway-api`           % Test,
+      Esw.`esw-testkit`               % Test
     )
   )
 

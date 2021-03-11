@@ -27,7 +27,10 @@ object EventServiceMultiNodeConfig extends MultiNodeConfig {
 
   commonConfig(debugConfig(on = false).withFallback(ConfigFactory.load()))
 }
-
+// ip1
+// ip2
+// ip1
+// ip2
 class EventServicePerfTestMultiJvmNode1 extends EventServicePerfTest
 class EventServicePerfTestMultiJvmNode2 extends EventServicePerfTest
 //class EventServicePerfTestMultiJvmNode3 extends EventServicePerfTest
@@ -163,8 +166,8 @@ class EventServicePerfTest extends BasePerfSuite(EventServiceMultiNodeConfig) {
   private def activeInactivePubNodes(pubSubAllocationPerNode: List[immutable.IndexedSeq[Int]]) = {
     if (publisherNodes.size > pubSubAllocationPerNode.size) publisherNodes.splitAt(pubSubAllocationPerNode.size)
     else (publisherNodes, Seq.empty)
-  }
 
+  }
   private def activeInactiveSubNodes(pubSubAllocationPerNode: List[immutable.IndexedSeq[Int]]) = {
     if (subscriberNodes.size > pubSubAllocationPerNode.size) subscriberNodes.splitAt(pubSubAllocationPerNode.size)
     else (subscriberNodes, Seq.empty)
@@ -184,12 +187,12 @@ class EventServicePerfTest extends BasePerfSuite(EventServiceMultiNodeConfig) {
   }
 
   private val scens     = new Scenarios(testConfigs)
-  private val scenarios = List(scens.payloadOneToOne, scens.payloadOneToMany)
+  private val scenarios = List(scens.payloadOneToOne)
 
   for (scenario <- scenarios) {
     val scenarioName = scenario.name
     for (currentTest <- scenario.testSettings)
-      ignore(s"Perf results must be great for ${currentTest.testName} with payloadSize = ${currentTest.payloadSize}") {
+      test(s"Perf results must be great for ${currentTest.testName} with payloadSize = ${currentTest.payloadSize}") {
         testScenario(scenarioName, currentTest)
       }
   }

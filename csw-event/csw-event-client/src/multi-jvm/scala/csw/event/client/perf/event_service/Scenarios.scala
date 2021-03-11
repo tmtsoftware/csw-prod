@@ -53,11 +53,25 @@ class Scenarios(testConfigs: TestConfigs) {
   val payloadOneToOne: Scenario = Scenario(
     "payload-1-to-1",
     List(
+//      TestSettings(
+//        testName = "tcs.size_128_5000_messages",
+//        totalTestMsgs = adjustedTotalMessages(5000),
+//        payloadSize = 128,
+//        publisherSubscriberPairs = 10,
+//        singlePublisher = false
+//      ),
+//      TestSettings(
+//        testName = "tcs.size_512_5000_messages",
+//        totalTestMsgs = adjustedTotalMessages(5000),
+//        payloadSize = 512,
+//        publisherSubscriberPairs = 10,
+//        singlePublisher = false
+//      ),
       TestSettings(
-        testName = "tcs.1-to-1-size-100",
-        totalTestMsgs = adjustedTotalMessages(2000),
-        payloadSize = 100,
-        publisherSubscriberPairs = 1,
+        testName = "tcs.size_512_200000_messages",
+        totalTestMsgs = adjustedTotalMessages(200000),
+        payloadSize = 512,
+        publisherSubscriberPairs = 10,
         singlePublisher = false
       )
 //      TestSettings(

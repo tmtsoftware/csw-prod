@@ -1,6 +1,6 @@
 package csw.event.client.perf.wiring
 
-import akka.actor.typed.ActorSystem
+import akka.actor.typed.{ActorSystem, SpawnProtocol}
 import csw.event.api.scaladsl.{EventPublisher, EventSubscriber}
 import csw.event.client.EventServiceFactory
 import csw.event.client.models.EventStores.{KafkaStore, RedisStore}
@@ -8,7 +8,7 @@ import org.mockito.MockitoSugar
 
 import scala.concurrent.ExecutionContext
 
-class TestWiring(val actorSystem: ActorSystem[_]) extends MockitoSugar {
+class TestWiring(val actorSystem: ActorSystem[SpawnProtocol.Command]) extends MockitoSugar {
   lazy val testConfigs: TestConfigs = new TestConfigs(actorSystem.settings.config)
   import testConfigs._
 
